@@ -1,8 +1,6 @@
 import sys
 import logging
 import os
-from publib import render as render
-from publib import connect_database as connect_database
 
 
 class DatabaseConnection(object):
@@ -10,8 +8,35 @@ class DatabaseConnection(object):
         self.sample_name = str(sample_name)
         cursor = None
 
+    @staticmethod
+    def connect_database():
+        import sys
+        try:
+            import MySQLdb as mdb
+        except ImportError:
+            import pymysql as mdb
+        if sys.platform.startswith('win32'):
+            connection = mdb.connect(
+                'localhost', 'ang', 'Anti901201', 'testdb'
+            )
+        elif sys.platform.startswith('darwin'):
+            connection = mdb.connect(
+                'localhost', 'ang', 'N8[J?H33}c*m{x', 'testdb'
+            )
+        return connection.cursor()
+
+
+
+    @staticmethod
+    def format_data(layer):
+        method_dict = {'0': 'MEE', '1': 'MBE', '2': ''}
+        layer[1] = method_dict[str(layer[1])]
+        layer[2] = int(layer[2])
+        layer[3] = float(layer[3])
+        return layer
+
     def is_table_exists(self):
-        cursor = connect_database()
+        cursor = self.connect_database()
         cursor.execute("""
             SELECT COUNT(*)
             FROM information_schema.tables
@@ -24,17 +49,9 @@ class DatabaseConnection(object):
             cursor.close()
             return 0
 
-    @staticmethod
-    def format_data(layer):
-        method_dict = {'0': 'MEE', '1': 'MBE', '2': ''}
-        layer[1] = method_dict[str(layer[1])]
-        layer[2] = int(layer[2])
-        layer[3] = float(layer[3])
-        return layer
-
     def read_recipe(self):
         """Delete current structure and reconstruct from DB."""
-        cursor = connect_database()
+        cursor = self.connect_database()
         if self.is_table_exists():
             cursor.execute("SELECT * FROM %s" % self.sample_name)
             sample_structure = []

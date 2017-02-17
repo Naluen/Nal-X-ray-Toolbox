@@ -32,12 +32,12 @@ $$ {{sample_dict[i]['intensity']}}\quad CPS$$
 \setcounter{subfigure}{0}
 \subfigure[Poles Figure Images]{
 
-\includegraphics[width=1.6in]{ {{sample_dict[i]['XRDpath']}}{{i}}_PF.png}
+\includegraphics[width=1.6in]{ {{sample_dict[i]['xrd_path']}}{{i}}_PF.png}
 }
 \subfigure[2D Images and MT density measurement]{
 \begin{minipage}[b]{0.5\textwidth}
-\includegraphics[width=3in]{ {{sample_dict[i]['XRDpath']}}{{i}}_2D.png} 
-\includegraphics[width=3in]{ {{sample_dict[i]['XRDpath']}}MT_density_{{i}}.png} 
+\includegraphics[width=3in]{ {{sample_dict[i]['xrd_path']}}{{i}}_2D.png}
+\includegraphics[width=3in]{ {{sample_dict[i]['xrd_path']}}mt_density_{{i}}.png}
 \end{minipage}
 }
 \end{figure*}

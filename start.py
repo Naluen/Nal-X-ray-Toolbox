@@ -3,6 +3,7 @@ import os
 import sys
 
 from PyQt5 import QtWidgets, QtCore
+from back_ground import ReportGenerator as ReportGenerator
 
 from ui.GUI import Ui_MainWindow
 
@@ -51,12 +52,11 @@ class ProgramInterface(QtWidgets.QMainWindow):
         xrd_directory = os.path.join(parent_directory_dir, 'SSMBE')
         logging.info("Scanning XRD directory {0}".format(xrd_directory))
         afm_directory = os.path.join(parent_directory_dir, 'AFM')
-        logging.info("Scanning XRD directory...")
+        logging.info("Scanning AFM directory {0}".format(afm_directory))
         [
             self.source_sample_set.add(i) for i in os.listdir(xrd_directory)
             if os.path.isdir(os.path.join(xrd_directory, i))
             ]
-        logging.info("Scanning AFM directory...")
         [
             self.source_sample_set.add(i) for i in os.listdir(afm_directory)
             if os.path.isdir(os.path.join(afm_directory, i))
@@ -68,20 +68,21 @@ class ProgramInterface(QtWidgets.QMainWindow):
             ]
 
     def set_options(self):
-        self.report_type['is_xrd'] = self.ui.checkBox_XRD.isChecked()
-        self.report_type['is_afm'] = self.ui.checkBox_AFM.isChecked()
-        self.report_type['is_rsm'] = self.ui.checkBox_RSM.isChecked()
+        self.report_type['xrd'] = self.ui.checkBox_XRD.isChecked()
+        self.report_type['afm'] = self.ui.checkBox_AFM.isChecked()
+        self.report_type['rsm'] = self.ui.checkBox_RSM.isChecked()
 
     def handle_button(self):
         self.set_options()
-        destination_sample_list = list(self.destination_sample_set)
-        main.makereport(
+        destination_sample_list = sorted(list(self.destination_sample_set))
+        report_instance = ReportGenerator(
             destination_sample_list,
             self.report_type,
             is_force=self.ui.checkBox_force.isChecked(),
             is_clear_cache=self.ui.checkBox_cleancache.isChecked(),
             is_show_image=self.ui.checkBox_shImage.isChecked()
         )
+        report_instance.write_context_dict()
 
     def item_add(self):
         self.destination_sample_set.add(
@@ -98,8 +99,8 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     logging.basicConfig(
-        # filename=os.path.join(
-        #     os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
+        filename=os.path.join(
+            os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
     )

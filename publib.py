@@ -22,3 +22,12 @@ def render(template_path, context):
     return jinja2.Environment(
         loader=jinja2.FileSystemLoader(
             path or './')).get_template(filename).render(context)
+
+
+def data_base_directory():
+    import os
+    if os.name is 'nt':
+        db_directory = r"C:\Users\ang\Dropbox\Experimental_Data"
+    else:
+        db_directory = r"/Users/zhouang/Dropbox/Experimental_Data"
+    return db_directory
