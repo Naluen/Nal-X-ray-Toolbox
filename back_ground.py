@@ -265,9 +265,8 @@ class XRDReportGenerator(Generator, PolesFigureFile):
         )
         peak_intensity_list = list(result['peak_intensity_matrix'])
         intensity_sum = sum(peak_intensity_list)
-        logging.info(intensity_sum)
         peak_intensity_list.append(intensity_sum)
-        logging.info(peak_intensity_list)
+        peak_intensity_list.insert(0, "Intensity")
         mt_dict = {
             'MT': (
                 "&".join(list(map(str, peak_intensity_list))) +
