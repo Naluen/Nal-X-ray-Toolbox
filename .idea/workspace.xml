@@ -2,8 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="9959b8bd-182a-437b-8cfc-c9bb2b6ae590" name="Default" comment="">
+      <change type="DELETED" beforePath="$PROJECT_DIR$/publib.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/recipe_generator.py" afterPath="" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/back_ground.py" afterPath="$PROJECT_DIR$/back_ground.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/start.py" afterPath="$PROJECT_DIR$/start.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -21,13 +24,30 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="start.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="start.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/start.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="619">
-              <caret line="76" column="75" lean-forward="false" selection-start-line="76" selection-start-column="75" selection-end-line="76" selection-end-column="75" />
+            <state relative-caret-position="458">
+              <caret line="90" column="26" lean-forward="false" selection-start-line="90" selection-start-column="12" selection-end-line="90" selection-end-column="26" />
               <folding>
                 <element signature="e#0#21#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="back_ground.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/back_ground.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="665">
+              <caret line="468" column="0" lean-forward="false" selection-start-line="468" selection-start-column="0" selection-end-line="468" selection-end-column="0" />
+              <folding>
+                <element signature="e#0#10#0" expanded="true" />
+                <element signature="e#258#1143#0" expanded="false" />
+                <element signature="e#1184#3051#0" expanded="false" />
+                <element signature="e#3092#4182#0" expanded="false" />
+                <element signature="e#4226#5789#0" expanded="false" />
+                <element signature="e#5789#5827#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -62,6 +82,8 @@
       <find>is_rsm</find>
       <find>sample_dict[i]['xrd']</find>
       <find>sort</find>
+      <find>in</find>
+      <find>in</find>
     </findStrings>
     <replaceStrings>
       <replace>sample_dict</replace>
@@ -79,20 +101,20 @@
         <option value="$PROJECT_DIR$/lib/RecipeGenerator.py" />
         <option value="$PROJECT_DIR$/lib/recipe_generator.py" />
         <option value="$PROJECT_DIR$/lib/publib.py" />
-        <option value="$PROJECT_DIR$/publib.py" />
         <option value="$PROJECT_DIR$/recipe_generator.py" />
         <option value="$PROJECT_DIR$/test.py" />
         <option value="$PROJECT_DIR$/templates/template.tex" />
         <option value="$PROJECT_DIR$/Poles.py" />
+        <option value="$PROJECT_DIR$/publib.py" />
         <option value="$PROJECT_DIR$/start.py" />
         <option value="$PROJECT_DIR$/back_ground.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="75" />
-    <option name="y" value="119" />
-    <option name="width" value="1932" />
+    <option name="x" value="-8" />
+    <option name="y" value="-8" />
+    <option name="width" value="1936" />
     <option name="height" value="1056" />
   </component>
   <component name="ProjectLevelVcsManager">
@@ -114,7 +136,6 @@
     </navigator>
     <panes>
       <pane id="Scratches" />
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -157,6 +178,7 @@
           </PATH>
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -432,15 +454,15 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="75" y="119" width="1932" height="1056" extended-state="0" />
+    <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.25052193" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32980973" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32980973" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
@@ -459,11 +481,21 @@
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
-      <option name="time" value="6" />
+      <option name="time" value="7" />
     </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/start.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#21#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/start.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -479,12 +511,12 @@
         <state relative-caret-position="3956">
           <caret line="373" column="9" lean-forward="true" selection-start-line="373" selection-start-column="9" selection-end-line="373" selection-end-column="9" />
           <folding>
-            <element signature="e#0#13#0" expanded="true" />
-            <element signature="e#239#1124#0" expanded="false" />
-            <element signature="e#1165#3032#0" expanded="false" />
-            <element signature="e#3073#4163#0" expanded="false" />
-            <element signature="e#4207#5770#0" expanded="false" />
-            <element signature="e#5770#5808#0" expanded="false" />
+            <element signature="e#0#10#0" expanded="true" />
+            <element signature="e#258#1143#0" expanded="false" />
+            <element signature="e#1184#3051#0" expanded="false" />
+            <element signature="e#3092#4182#0" expanded="false" />
+            <element signature="e#4226#5789#0" expanded="false" />
+            <element signature="e#5789#5827#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -493,7 +525,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -501,7 +532,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -509,9 +539,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="69">
           <caret line="5" column="0" lean-forward="false" selection-start-line="5" selection-start-column="0" selection-end-line="90" selection-end-column="19" />
-          <folding>
-            <element signature="e#0#10#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -519,9 +547,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#13#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -554,12 +579,12 @@
         <state relative-caret-position="2553">
           <caret line="312" column="68" lean-forward="false" selection-start-line="312" selection-start-column="60" selection-end-line="312" selection-end-column="68" />
           <folding>
-            <element signature="e#0#13#0" expanded="true" />
-            <element signature="e#239#1124#0" expanded="false" />
-            <element signature="e#1165#3032#0" expanded="false" />
-            <element signature="e#3073#4163#0" expanded="false" />
-            <element signature="e#4207#5770#0" expanded="false" />
-            <element signature="e#5770#5808#0" expanded="false" />
+            <element signature="e#0#10#0" expanded="true" />
+            <element signature="e#258#1143#0" expanded="false" />
+            <element signature="e#1184#3051#0" expanded="false" />
+            <element signature="e#3092#4182#0" expanded="false" />
+            <element signature="e#4226#5789#0" expanded="false" />
+            <element signature="e#5789#5827#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -578,9 +603,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="69">
           <caret line="5" column="0" lean-forward="false" selection-start-line="5" selection-start-column="0" selection-end-line="90" selection-end-column="19" />
-          <folding>
-            <element signature="e#0#10#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -618,12 +641,12 @@
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
-            <element signature="e#0#13#0" expanded="true" />
-            <element signature="e#239#1124#0" expanded="false" />
-            <element signature="e#1165#3032#0" expanded="false" />
-            <element signature="e#3073#4163#0" expanded="false" />
-            <element signature="e#4207#5770#0" expanded="false" />
-            <element signature="e#5770#5808#0" expanded="false" />
+            <element signature="e#0#10#0" expanded="true" />
+            <element signature="e#258#1143#0" expanded="false" />
+            <element signature="e#1184#3051#0" expanded="false" />
+            <element signature="e#3092#4182#0" expanded="false" />
+            <element signature="e#4226#5789#0" expanded="false" />
+            <element signature="e#5789#5827#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -632,7 +655,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="529">
           <caret line="23" column="28" lean-forward="false" selection-start-line="23" selection-start-column="28" selection-end-line="23" selection-end-column="28" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -640,9 +662,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1725">
           <caret line="79" column="37" lean-forward="true" selection-start-line="79" selection-start-column="21" selection-end-line="79" selection-end-column="37" />
-          <folding>
-            <element signature="e#0#10#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -650,9 +670,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#13#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -707,13 +724,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/publib.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="598">
-          <caret line="26" column="26" lean-forward="true" selection-start-line="26" selection-start-column="26" selection-end-line="26" selection-end-column="26" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/templates/RecipeTable.tex">
       <provider editor-type-id="LaTeXFileEditor">
         <state />
@@ -721,17 +731,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/recipe_generator.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="69">
-          <caret line="5" column="0" lean-forward="false" selection-start-line="5" selection-start-column="0" selection-end-line="90" selection-end-column="19" />
-          <folding>
-            <element signature="e#0#10#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -742,9 +741,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#13#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -755,7 +751,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -773,27 +768,43 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/back_ground.py">
+    <entry file="file://$PROJECT_DIR$/recipe_generator.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="417">
-          <caret line="268" column="48" lean-forward="false" selection-start-line="268" selection-start-column="48" selection-end-line="268" selection-end-column="48" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-            <element signature="e#239#1124#0" expanded="false" />
-            <element signature="e#1165#3032#0" expanded="false" />
-            <element signature="e#3073#4163#0" expanded="false" />
-            <element signature="e#4207#5770#0" expanded="false" />
-            <element signature="e#5770#5808#0" expanded="false" />
-          </folding>
+        <state relative-caret-position="-1428">
+          <caret line="5" column="0" lean-forward="false" selection-start-line="5" selection-start-column="0" selection-end-line="90" selection-end-column="19" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/publib.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="598">
+          <caret line="26" column="0" lean-forward="false" selection-start-line="26" selection-start-column="0" selection-end-line="26" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/start.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="619">
-          <caret line="76" column="75" lean-forward="false" selection-start-line="76" selection-start-column="75" selection-end-line="76" selection-end-column="75" />
+        <state relative-caret-position="458">
+          <caret line="90" column="26" lean-forward="false" selection-start-line="90" selection-start-column="12" selection-end-line="90" selection-end-column="26" />
           <folding>
             <element signature="e#0#21#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/back_ground.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="665">
+          <caret line="468" column="0" lean-forward="false" selection-start-line="468" selection-start-column="0" selection-end-line="468" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#10#0" expanded="true" />
+            <element signature="e#258#1143#0" expanded="false" />
+            <element signature="e#1184#3051#0" expanded="false" />
+            <element signature="e#3092#4182#0" expanded="false" />
+            <element signature="e#4226#5789#0" expanded="false" />
+            <element signature="e#5789#5827#0" expanded="false" />
           </folding>
         </state>
       </provider>

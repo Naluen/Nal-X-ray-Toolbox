@@ -1,14 +1,16 @@
+import abc
 import codecs
 import datetime
 import glob
 import logging
 import os
 import re
+import subprocess
 import sys
-import abc
+
+from PyQt5.QtWidgets import QFileDialog as QFileDialog
 
 from Poles import PolesFigureFile as PolesFigureFile
-from PyQt5.QtWidgets import QFileDialog as QFileDialog
 
 
 class Generator(object):
@@ -256,24 +258,32 @@ class XRDReportGenerator(Generator, PolesFigureFile):
         self.xrd_work_path = xrd_work_path
 
     def print_peak_intensity_list_tex(self):
+        """
+
+        :return: formatted micro-twins table.
+        """
         result = self.plot_2d_measurement(is_save_image=False)
         result = self.mt_intensity_to_fraction(result)
+
+        peak_intensity_list = list(result['peak_intensity_matrix'])
+        peak_intensity_list = [round(i, 2) for i in peak_intensity_list]
+        intensity_sum = sum(peak_intensity_list)
+        peak_intensity_list.append(intensity_sum)
+        peak_intensity_list = list(map(str, peak_intensity_list))
+        peak_intensity_list.insert(0, "Intensity")
+
+        mt_dict = {
+            'MT': (
+                "&".join(peak_intensity_list) +
+                r"\\" +
+                os.linesep
+            )
+        }
         template_file_path = os.path.join(
             os.path.dirname(sys.argv[0]),
             'templates',
             'mt_table.tex'
         )
-        peak_intensity_list = list(result['peak_intensity_matrix'])
-        intensity_sum = sum(peak_intensity_list)
-        peak_intensity_list.append(intensity_sum)
-        peak_intensity_list.insert(0, "Intensity")
-        mt_dict = {
-            'MT': (
-                "&".join(list(map(str, peak_intensity_list))) +
-                r"\\" +
-                os.linesep
-            )
-        }
         mt_v_fraction_data_str = self.render(
             template_file_path,
             mt_dict
@@ -371,11 +381,7 @@ class ReportGenerator(Generator):
                 key for key, value in self.report_type_dict.items() if value
             )
         )
-        tex_file_str = (
-            "_".join(report_title) +
-            r"_Report_of_" +
-            "_".join(self.sample_list) + '.tex'
-        )
+
         report_title = (
             '\\&'.join(report_title) +
             r" Report of " +
@@ -419,13 +425,49 @@ class ReportGenerator(Generator):
         #                 "RSM ammunition of {0} is in short....".format(i))
 
         os.chdir(cwd)
-        tex_template_str = os.path.join(
+
+    def tex_progress(self):
+        """Make pdf from TeX file.
+
+        Args:
+            tex_file_str: the TeX File name
+
+        Returns:
+            None
+
+        Raises:
+            Unknown
+        """
+        self.write_context_dict()
+        tex_template_file_str = os.path.join(
             os.path.dirname(sys.argv[0]), 'templates', 'template.tex')
-        tex_print_str = self.render(tex_template_str, self.context_dict)
+        tex_print_str = self.render(tex_template_file_str, self.context_dict)
         tex_print_str = re.sub(r'\{ ', '{', tex_print_str)
         tex_print_str = re.sub(r' \}', '}', tex_print_str)
+
+        tex_file_str = "_".join(self.context_dict['title'].split()) + ".tex"
 
         with open(tex_file_str, 'wb') as f:
             f.write(tex_print_str.encode('utf-8'))
 
-        return os.path.abspath(tex_file_str)
+        process = subprocess.Popen(
+            'pdflatex --interaction=nonstopmode {0}'.format(tex_file_str),
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        out, err = process.communicate()
+        # if out:
+        #     print("standard output of subprocess:")
+        #     print(out)
+        # if err:
+        #     print("standard error of subprocess:")
+        #     print(err)
+        if (
+                    ('is_clear_cache' in self.generator_preference_dict) and
+                    self.generator_preference_dict['is_clear_cache']
+        ):
+            try:
+                os.remove(tex_file_str.replace(".tex", ".aux"))
+                os.remove(tex_file_str.replace(".tex", ".log"))
+            except FileNotFoundError:
+                logging.info("Not found log or aux file...")

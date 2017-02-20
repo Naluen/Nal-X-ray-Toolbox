@@ -3,8 +3,8 @@ import os
 import sys
 
 from PyQt5 import QtWidgets, QtCore
-from back_ground import ReportGenerator as ReportGenerator
 
+from back_ground import ReportGenerator as ReportGenerator
 from ui.GUI import Ui_MainWindow
 
 
@@ -47,8 +47,17 @@ class ProgramInterface(QtWidgets.QMainWindow):
     def open_parameter_setup(self):
         self.dialogTextBrowser.show()
 
+    @staticmethod
+    def data_base_directory():
+        import os
+        if os.name is 'nt':
+            db_directory = r"C:\Users\ang\Dropbox\Experimental_Data"
+        else:
+            db_directory = r"/Users/zhouang/Dropbox/Experimental_Data"
+        return db_directory
+
     def init_list(self):
-        parent_directory_dir = r"C:\Users\ang\Dropbox\Experimental_Data"
+        parent_directory_dir = self.data_base_directory()
         xrd_directory = os.path.join(parent_directory_dir, 'SSMBE')
         logging.info("Scanning XRD directory {0}".format(xrd_directory))
         afm_directory = os.path.join(parent_directory_dir, 'AFM')
@@ -82,7 +91,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
             is_clear_cache=self.ui.checkBox_cleancache.isChecked(),
             is_show_image=self.ui.checkBox_shImage.isChecked()
         )
-        report_instance.write_context_dict()
+        report_instance.tex_progress()
 
     def item_add(self):
         self.destination_sample_set.add(
