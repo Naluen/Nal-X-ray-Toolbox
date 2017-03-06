@@ -321,7 +321,7 @@ class PolesFigureFile(BeamIntensityFile):
             x = np.asarray([x_min, x_max, x_max, x_min, x_min])
             y = np.asarray([y_min, y_min, y_max, y_max, y_min])
             if ('axes' in axes) and axes['axes']:
-                axes['axes'].plot(x, y, linewidth=0.5)
+                axes['axes'].plot(x, y, linewidth=1)
 
             intensity_result_matrix = intensity_matrix[
                                       y_min:y_max, x_min:x_max]

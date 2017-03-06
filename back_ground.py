@@ -126,7 +126,7 @@ class RecipeGenerator(Generator):
                 self.context_dict['comment'].append(
                     "{0}: {1}\\\\".format(i[0], i[-1]) + os.linesep)
             self.context_dict['layer'].append(
-                "&".join(map(str, i[:-2])) + r"\\" + os.linesep)
+                "&".join(map(str, i[:-1])) + r"\\" + os.linesep)
 
     def tex_generator(self):
         self.write_context_dict()
