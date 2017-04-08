@@ -37,12 +37,16 @@ class Generator(object):
 
         return tex_str
 
-    def print_to_pdf(self, file_list):
+    def print_to_pdf(self, file_list, **param):
         tex_str = self.print_to_tex(file_list)
 
-        with open('tmp.tex', 'wb') as th:
+        if 'file_name' in param:
+            tex_file_name = param['file_name'].replace('.pdf', '.tex')
+        else:
+            tex_file_name = 'temp.tex'
+        with open(tex_file_name, 'wb') as th:
             th.write(tex_str.encode('utf-8'))
-        tex_file = os.path.abspath('tmp.tex')
+        tex_file = os.path.abspath(tex_file_name)
         process = subprocess.Popen(
             'pdflatex --interaction=nonstopmode {0}'.format(tex_file),
             shell=True,

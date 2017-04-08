@@ -103,9 +103,18 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
         logging.debug(file_list)
 
-        os.chdir('/Users/zhouang/Dropbox')
-        report = ReportGenerator.Generator()
-        report.print_to_pdf(file_list)
+        pdf_file_name = QtWidgets.QFileDialog.getSaveFileName(
+            self, 'Save Report file',
+            'report',
+            "PDF files (*.pdf)")
+        pdf_file_name = str(pdf_file_name[0])
+
+        if pdf_file_name:
+            os.chdir(os.path.dirname(pdf_file_name))
+            report = ReportGenerator.Generator()
+            report.print_to_pdf(file_list, file_name=pdf_file_name)
+        else:
+            return
 
 
 if __name__ == '__main__':
