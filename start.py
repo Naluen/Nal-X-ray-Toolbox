@@ -1,10 +1,11 @@
 import logging.config
 import os
 import sys
+import h5py
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 
-from back_ground import ReportGenerator as ReportGenerator
+from XrdAnalysis import ReportGenerator
 from ui.GUI import Ui_MainWindow
 
 
@@ -19,29 +20,27 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.source_sample_set = set()
         self.destination_sample_set = set()
 
-        self.init_list()
+        self.init_group()
         self.ui.checkBox_cleancache.setChecked(1)
 
         self.ui.pushButton.setStyleSheet(
             "QPushButton{background-color:#16A085;"
             "border:none;color:#ffffff;font-size:20px;}"
             "QPushButton:hover{background-color:#333333;}")
-        self.ui.pushButton.clicked.connect(self.handle_button)
 
+        self.ui.pushButton.clicked.connect(self.process)
         self.ui.listWidget.itemDoubleClicked.connect(self.item_add)
         self.ui.listWidget_2.itemDoubleClicked.connect(self.item_remove)
 
-    def _update_list(self):
-        self.ui.listWidget.clear()
-        self.ui.listWidget_2.clear()
-        source_sample_list = sorted(
-            list(
-                self.source_sample_set.difference(self.destination_sample_set)
-            )
-        )
-        destination_sample_list = sorted(list(self.destination_sample_set))
-        [self.ui.listWidget.addItem(i) for i in list(source_sample_list)]
-        [self.ui.listWidget_2.addItem(i) for i in list(destination_sample_list)]
+    @staticmethod
+    def view_sort(view):
+        view.sortItems(0, QtCore.Qt.AscendingOrder)
+        root = view.invisibleRootItem()
+        for i in range(root.childCount()):
+            item = root.child(i)
+            item.sortChildren(0, QtCore.Qt.AscendingOrder)
+            if item.childCount() == 0:
+                view.takeTopLevelItem(i)
 
     @QtCore.pyqtSlot()
     def open_parameter_setup(self):
@@ -51,59 +50,62 @@ class ProgramInterface(QtWidgets.QMainWindow):
     def data_base_directory():
         import os
         if os.name is 'nt':
-            db_directory = r"C:\Users\ang\Dropbox\Experimental_Data"
+            xrd_lib = r"C:\Users\ang\Dropbox\Experimental_Data\xrd_lib.h5"
         else:
-            db_directory = r"/Users/zhouang/Dropbox/Experimental_Data"
-        return db_directory
+            xrd_lib = r"/Users/zhouang/Dropbox/Experimental_Data/xrd_lib.h5"
+        return xrd_lib
 
-    def init_list(self):
-        parent_directory_dir = self.data_base_directory()
-        xrd_directory = os.path.join(parent_directory_dir, 'SSMBE')
-        logging.info("Scanning XRD directory {0}".format(xrd_directory))
-        afm_directory = os.path.join(parent_directory_dir, 'AFM')
-        logging.info("Scanning AFM directory {0}".format(afm_directory))
-        [
-            self.source_sample_set.add(i) for i in os.listdir(xrd_directory)
-            if os.path.isdir(os.path.join(xrd_directory, i))
-            ]
-        [
-            self.source_sample_set.add(i) for i in os.listdir(afm_directory)
-            if os.path.isdir(os.path.join(afm_directory, i))
-            ]
+    def init_group(self):
+        xrd_lib = self.data_base_directory()
+        with open(xrd_lib, 'r') as fp:
+            file_handle = h5py.File(xrd_lib)
+
+        self.source_sample_set = set([i for i in file_handle.keys()])
+
         source_sample_list = sorted(list(self.source_sample_set))
-        [
-            self.ui.listWidget.addItem(
-                QtWidgets.QListWidgetItem(str(i))) for i in source_sample_list
-            ]
+        for i in source_sample_list:
+            group = QtWidgets.QTreeWidgetItem(self.ui.listWidget, [i])
+            for k in file_handle[i].keys():
+                QtWidgets.QTreeWidgetItem(group, [k])
 
-    def set_options(self):
-        self.report_type['xrd'] = self.ui.checkBox_XRD.isChecked()
-        self.report_type['afm'] = self.ui.checkBox_AFM.isChecked()
-        self.report_type['rsm'] = self.ui.checkBox_RSM.isChecked()
-
-    def handle_button(self):
-        self.set_options()
-        destination_sample_list = sorted(list(self.destination_sample_set))
-        report_instance = ReportGenerator(
-            destination_sample_list,
-            self.report_type,
-            is_force=self.ui.checkBox_force.isChecked(),
-            is_clear_cache=self.ui.checkBox_cleancache.isChecked(),
-            is_show_image=self.ui.checkBox_shImage.isChecked()
-        )
-        report_instance.tex_progress()
+        self.view_sort(self.ui.listWidget)
 
     def item_add(self):
-        self.destination_sample_set.add(
-            self.ui.listWidget.currentItem().text()
-        )
-        self._update_list()
+        text = self.ui.listWidget.currentItem().text(0)
+        if self.ui.listWidget.currentItem().parent() is not None:
+            text2 = self.ui.listWidget.currentItem().parent().text(0)
+            gp = self.ui.listWidget_2.findItems(
+                text2, QtCore.Qt.MatchExactly|QtCore.Qt.MatchRecursive, 0)
+            if not gp:
+                gp = [QtWidgets.QTreeWidgetItem(self.ui.listWidget_2, [text2])]
+
+            QtWidgets.QTreeWidgetItem(gp[0], [text])
+
+        self.ui.listWidget_2.update()
+        self.view_sort(self.ui.listWidget)
+        self.view_sort(self.ui.listWidget_2)
 
     def item_remove(self):
-        self.destination_sample_set.remove(
-            self.ui.listWidget_2.currentItem().text()
-        )
-        self._update_list()
+        item = self.ui.listWidget_2.currentItem()
+        item.parent().takeChild(item.parent().indexOfChild(item))
+        self.view_sort(self.ui.listWidget_2)
+
+    def process(self):
+        file_list = []
+        root = self.ui.listWidget_2.invisibleRootItem()
+        for i in range(root.childCount()):
+            item = root.child(i)
+            for k in range(item.childCount()):
+                chd = item.child(k)
+                file_list.append(item.text(0) + '/' + chd.text(0))
+
+        file_list = [[self.data_base_directory(), i] for i in file_list]
+
+        logging.debug(file_list)
+
+        os.chdir('/Users/zhouang/Dropbox')
+        report = ReportGenerator.Generator()
+        report.print_to_pdf(file_list)
 
 
 if __name__ == '__main__':
