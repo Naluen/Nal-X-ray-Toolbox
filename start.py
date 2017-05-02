@@ -50,7 +50,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
     def data_base_directory():
         import os
         if os.name is 'nt':
-            xrd_lib = r"C:\Users\ang\Dropbox\Experimental_Data\xrd_lib.h5"
+            xrd_lib = r"C:\Users\hang\Dropbox\Experimental_Data\xrd_lib.h5"
         else:
             xrd_lib = r"/Users/zhouang/Dropbox/Experimental_Data/xrd_lib.h5"
         return xrd_lib
@@ -73,9 +73,12 @@ class ProgramInterface(QtWidgets.QMainWindow):
     def item_add(self):
         text = self.ui.listWidget.currentItem().text(0)
         if self.ui.listWidget.currentItem().parent() is not None:
+            # If the item is not in top level.
             text2 = self.ui.listWidget.currentItem().parent().text(0)
+            # Get current item text.
             gp = self.ui.listWidget_2.findItems(
                 text2, QtCore.Qt.MatchExactly|QtCore.Qt.MatchRecursive, 0)
+            # Find if parent item exist.
             if not gp:
                 gp = [QtWidgets.QTreeWidgetItem(self.ui.listWidget_2, [text2])]
 
@@ -87,7 +90,12 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
     def item_remove(self):
         item = self.ui.listWidget_2.currentItem()
-        item.parent().takeChild(item.parent().indexOfChild(item))
+        if item.parent() is not None:
+            item.parent().takeChild(item.parent().indexOfChild(item))
+        else:
+            self.ui.listWidget_2.takeTopLevelItem(
+                self.ui.listWidget_2.indexOfTopLevelItem(item))
+
         self.view_sort(self.ui.listWidget_2)
 
     def process(self):
@@ -110,18 +118,18 @@ class ProgramInterface(QtWidgets.QMainWindow):
         pdf_file_name = str(pdf_file_name[0])
 
         if pdf_file_name:
-            os.chdir(os.path.dirname(pdf_file_name))
-            report = ReportGenerator.Generator()
-            report.print_to_pdf(file_list, file_name=pdf_file_name)
+                os.chdir(os.path.dirname(pdf_file_name))
+                report = ReportGenerator.Generator()
+                report.print_to_pdf(file_list, file_name=pdf_file_name)
         else:
             return
 
 
 if __name__ == '__main__':
     logging.basicConfig(
-        filename=os.path.join(
-            os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
-        level=logging.INFO,
+        # filename=os.path.join(
+        #     os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
+        level=logging.DEBUG,
         format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
     )
     Program = QtWidgets.QApplication(sys.argv)
