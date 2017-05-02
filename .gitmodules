@@ -1,0 +1,3 @@
+[submodule "XrdAnalysis"]
+	path = XrdAnalysis
+	url = https://github.com/Naluen/XrdAnalysis.git
