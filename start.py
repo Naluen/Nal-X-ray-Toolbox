@@ -32,6 +32,11 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.listWidget.itemDoubleClicked.connect(self.item_add)
         self.ui.listWidget_2.itemDoubleClicked.connect(self.item_remove)
 
+        self.ui.listWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.ui.listWidget_2.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.ui.listWidget.customContextMenuRequested.connect(self.open_menu)
+        self.ui.listWidget_2.customContextMenuRequested.connect(self.open_menu)
+
     @staticmethod
     def view_sort(view):
         view.sortItems(0, QtCore.Qt.AscendingOrder)
@@ -123,6 +128,19 @@ class ProgramInterface(QtWidgets.QMainWindow):
                 report.print_to_pdf(file_list, file_name=pdf_file_name)
         else:
             return
+
+    def open_menu(self, position):
+        indexes = self.sender().selectedIndexes()
+        if len(indexes) > 0:
+            level = 0
+            index = indexes[0]
+            while index.parent().isValid():
+                index = index.parent()
+                level += 1
+        menu = QtWidgets.QMenu()
+        if level == 1:
+            menu.addAction(self.tr("Plot"))
+        menu.exec_(self.sender().viewport().mapToGlobal(position))
 
 
 if __name__ == '__main__':
