@@ -7,13 +7,19 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 
 from XrdAnalysis import ReportGenerator
 from ui.GUI import Ui_MainWindow
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvasQTAgg as FigureCanvas)
+from matplotlib.backends.backend_qt5agg import (
+    NavigationToolbar2QT as NavigationToolbar
+)
+from XrdAnalysis import Reader
 
 
 class ProgramInterface(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)
+        self.ui = Ui_MainWindow(self)
 
         self.report_type = {}
         self.generator_preference_dict = {}
@@ -36,6 +42,16 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.listWidget_2.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.ui.listWidget.customContextMenuRequested.connect(self.open_menu)
         self.ui.listWidget_2.customContextMenuRequested.connect(self.open_menu)
+
+        self.figure = plt.figure()
+        self.canvas = FigureCanvas(self.figure)
+
+        self.toolbar = NavigationToolbar(self.canvas, self)
+
+        self.ui.sub_layout_1.addWidget(self.toolbar)
+        self.ui.sub_layout_1.addWidget(self.canvas)
+
+        self.ui.plot_action.triggered.connect(self.plot)
 
     @staticmethod
     def view_sort(view):
@@ -82,7 +98,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
             text2 = self.ui.listWidget.currentItem().parent().text(0)
             # Get current item text.
             gp = self.ui.listWidget_2.findItems(
-                text2, QtCore.Qt.MatchExactly|QtCore.Qt.MatchRecursive, 0)
+                text2, QtCore.Qt.MatchExactly | QtCore.Qt.MatchRecursive, 0)
             # Find if parent item exist.
             if not gp:
                 gp = [QtWidgets.QTreeWidgetItem(self.ui.listWidget_2, [text2])]
@@ -123,24 +139,38 @@ class ProgramInterface(QtWidgets.QMainWindow):
         pdf_file_name = str(pdf_file_name[0])
 
         if pdf_file_name:
-                os.chdir(os.path.dirname(pdf_file_name))
-                report = ReportGenerator.Generator()
-                report.print_to_pdf(file_list, file_name=pdf_file_name)
+            os.chdir(os.path.dirname(pdf_file_name))
+            report = ReportGenerator.Generator()
+            report.print_to_pdf(file_list, file_name=pdf_file_name)
         else:
             return
 
     def open_menu(self, position):
         indexes = self.sender().selectedIndexes()
+
         if len(indexes) > 0:
             level = 0
             index = indexes[0]
+
             while index.parent().isValid():
                 index = index.parent()
                 level += 1
+        else:
+            return
         menu = QtWidgets.QMenu()
+        menu.addAction(self.ui.plot_action)
         if level == 1:
-            menu.addAction(self.tr("Plot"))
-        menu.exec_(self.sender().viewport().mapToGlobal(position))
+            self.current_item = [
+                self.data_base_directory(),
+                self.sender().currentItem().parent().text(0) + '/' +
+                self.sender().currentItem().text(0)
+            ]
+            menu.exec_(self.sender().viewport().mapToGlobal(position))
+
+    def plot(self):
+        self.figure.gca()
+        Reader.H5File(self.current_item).read_data().plot()
+        self.canvas.draw()
 
 
 if __name__ == '__main__':
