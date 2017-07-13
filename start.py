@@ -169,7 +169,10 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
     def plot(self):
         self.figure.gca()
-        Reader.H5File(self.current_item).read_data().plot()
+        try:
+            Reader.H5File(self.current_item).read_data().plot()
+        except KeyError as e:
+            logging.error(e)
         self.canvas.draw()
 
 
