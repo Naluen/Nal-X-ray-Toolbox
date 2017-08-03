@@ -1,19 +1,19 @@
 import logging.config
 import os
 import sys
+
 import h5py
-
-from PyQt5 import QtWidgets, QtCore, QtGui
-
-from XrdAnalysis import ReportGenerator
-from ui.GUI import Ui_MainWindow
 import matplotlib.pyplot as plt
+from PyQt5 import QtWidgets, QtCore
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 from matplotlib.backends.backend_qt5agg import (
     NavigationToolbar2QT as NavigationToolbar
 )
+
 from XrdAnalysis import Reader
+from XrdAnalysis import ReportGenerator
+from ui.GUI import Ui_MainWindow
 
 
 class ProgramInterface(QtWidgets.QMainWindow):
@@ -25,6 +25,9 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.generator_preference_dict = {}
         self.source_sample_set = set()
         self.destination_sample_set = set()
+        self.current_item = []
+        self.show_inter = None
+        self.attr_inter = None
 
         self.init_group()
         self.ui.checkBox_cleancache.setChecked(1)
@@ -43,15 +46,12 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.listWidget.customContextMenuRequested.connect(self.open_menu)
         self.ui.listWidget_2.customContextMenuRequested.connect(self.open_menu)
 
-        self.figure = plt.figure()
-        self.canvas = FigureCanvas(self.figure)
+        self.sub_menu = QtWidgets.QMenu()
+        self.sub_menu.addAction(self.ui.plot_action)
+        self.sub_menu.addAction(self.ui.attr_action)
 
-        self.toolbar = NavigationToolbar(self.canvas, self)
-
-        self.ui.sub_layout_1.addWidget(self.toolbar)
-        self.ui.sub_layout_1.addWidget(self.canvas)
-
-        self.ui.plot_action.triggered.connect(self.plot)
+        self.ui.plot_action.triggered.connect(self.trigger_plot)
+        self.ui.attr_action.triggered.connect(self.trigger_attr)
 
     @staticmethod
     def view_sort(view):
@@ -157,23 +157,48 @@ class ProgramInterface(QtWidgets.QMainWindow):
                 level += 1
         else:
             return
-        menu = QtWidgets.QMenu()
-        menu.addAction(self.ui.plot_action)
+
         if level == 1:
             self.current_item = [
                 self.data_base_directory(),
                 self.sender().currentItem().parent().text(0) + '/' +
                 self.sender().currentItem().text(0)
             ]
-            menu.exec_(self.sender().viewport().mapToGlobal(position))
+            self.sub_menu.exec_(self.sender().viewport().mapToGlobal(position))
 
-    def plot(self):
-        self.figure.gca()
-        try:
-            Reader.H5File(self.current_item).read_data().plot()
-        except KeyError as e:
-            logging.error(e)
+    def trigger_plot(self):
+        self.show_inter = PlotInterface(self)
+        self.show_inter.show()
+
+    def trigger_attr(self):
+        self.attr_inter = AttrInterface(self)
+        self.attr_inter.show()
+
+
+class PlotInterface(QtWidgets.QMainWindow):
+    def __init__(self, parent=None):
+        super(PlotInterface, self).__init__(parent)
+
+        self.figure = plt.figure()
+        self.canvas = FigureCanvas(self.figure)
+
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.setCentralWidget(self.canvas)
+        self.addToolBar(self.toolbar)
+        Reader.H5File(parent.current_item).read_data().plot()
         self.canvas.draw()
+
+
+class AttrInterface(QtWidgets.QMainWindow):
+    def __init__(self, parent=None):
+        super(AttrInterface, self).__init__(parent)
+
+        tab_d = Reader.H5File(parent.current_item).read_data().get_scan_dict()
+        self.table = QtWidgets.QTableWidget(len(tab_d), 2, self)
+        for ind, i in enumerate(tab_d):
+            self.table.setItem(ind, 0, QtWidgets.QTableWidgetItem(i))
+            self.table.setItem(ind, 1, QtWidgets.QTableWidgetItem(tab_d[i]))
+        self.setCentralWidget(self.table)
 
 
 if __name__ == '__main__':
