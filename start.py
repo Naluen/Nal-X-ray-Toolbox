@@ -199,6 +199,16 @@ class AttrInterface(QtWidgets.QMainWindow):
             self.table.setItem(ind, 0, QtWidgets.QTableWidgetItem(i))
             self.table.setItem(ind, 1, QtWidgets.QTableWidgetItem(tab_d[i]))
         self.setCentralWidget(self.table)
+        self.parent = parent
+
+    def closeEvent(self, event):
+        scan_d = {
+            self.table.item(i, 0).text(): self.table.item(i, 1).text()
+            for i in range(self.table.rowCount())}
+
+        Reader.H5File(
+            self.parent.current_item).read_data().set_scan_dict(scan_d)
+        event.accept()
 
 
 if __name__ == '__main__':
