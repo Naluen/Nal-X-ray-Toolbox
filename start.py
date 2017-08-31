@@ -35,6 +35,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.attr_inter = None
         self.active_sender = None
         self.error = ''
+        self.selected_it_l = []
         # Read data sets namespace from h5py library to library tree view.
         self.init_group()
         # Setup report process config.
@@ -64,7 +65,6 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.listWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.ui.listWidget.customContextMenuRequested.connect(self.open_menu)
         # Right popup menu setup.
-        self.sub_menu = Submenu(self)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls:
@@ -264,8 +264,22 @@ class ProgramInterface(QtWidgets.QMainWindow):
         return level
 
     def open_menu(self, position):
-        self.active_sender = self.sender()
-        self.sub_menu.exec_(self.sender().viewport().mapToGlobal(position))
+
+        self.selected_it_l = [
+            self.get_list_text(i) for i in self.sender().selectedItems()
+        ]
+        sub_menu = Submenu(self)
+        sub_menu.exec_(self.sender().viewport().mapToGlobal(position))
+
+    def edit_item(self):
+        if len(self.ui.listWidget.selectedItems()) == 1:
+            self.ui.listWidget.selectedItems()[0].setFlags(
+                self.ui.listWidget.selectedItems()[0].flags() |
+                QtCore.Qt.ItemIsEditable)
+        else:
+            pass
+
+
 
 
 class Submenu(QtWidgets.QMenu):
@@ -273,12 +287,16 @@ class Submenu(QtWidgets.QMenu):
         super(Submenu, self).__init__(parent)
 
         self.error = ''
-        self.show_inter = None
-        self.attr_inter = None
         self.confirm_inter = None
-        self.parent = parent
-        self.get_list_text = parent.get_list_text
         self.confirm_info = ''
+        self.text = ''
+
+        if hasattr(parent, 'selected_it_l'):
+            self.selected_it_l = parent.selected_it_l
+        else:
+            raise NotImplementedError
+
+        self.parent = parent
 
         self.plot_action = QtWidgets.QAction(self)
         self.attr_action = QtWidgets.QAction(self)
@@ -295,43 +313,46 @@ class Submenu(QtWidgets.QMenu):
 
         # Connect popup menu with action.
         self.plot_action.triggered.connect(self.trigger_plot)
-        self.del_action.triggered.connect(self.trigger_del)
         self.attr_action.triggered.connect(self.trigger_attr)
+        self.del_action.triggered.connect(self.trigger_del)
+        self.re_action.triggered.connect(parent.edit_item)
 
     def trigger_plot(self):
         try:
-            self.show_inter = PlotInterface(self)
+            show_inter = PlotInterface(self)
         except Exception as inst:
             self.error = inst
-            self.show_inter = ErrorInterface(self)
+            show_inter = ErrorInterface(self)
         finally:
-            self.show_inter.show()
+            show_inter.show()
 
     def trigger_attr(self):
-        attr_ct = 0
-        text = self.parent.get_list_text(
-            self.parent.active_sender.selectedItems()[attr_ct])
-
-        for _ in self.parent.active_sender.selectedItems():
+        for i in self.selected_it_l:
             try:
-                self.attr_inter = AttrInterface(self, text)
-
+                self.text = i
+                attr_inter = AttrInterface(self)
             except Exception as inst:
                 self.error = inst
-                self.attr_inter = ErrorInterface(self)
+                attr_inter = ErrorInterface(self)
             finally:
-                self.attr_inter.show()
-                attr_ct += 1
+                attr_inter.show()
 
     def trigger_del(self):
-        self.confirm_inter = ConfirmInterface(self)
-        self.confirm_inter.show()
         self.confirm_info = "Would you like to delete this?"
+        ConfirmInterface(self).show()
+
+    def confirm_method(self):
+        for i in self.selected_it_l:
+            Reader.H5File(i).delete_self()
+        self.parent.init_group()
 
 
 class PlotInterface(QtWidgets.QMainWindow):
-    def __init__(self, text):
-        super(PlotInterface, self).__init__()
+    def __init__(self, parent=None):
+        super(PlotInterface, self).__init__(
+            parent,
+            flags=QtCore.Qt.Widget
+        )
 
         self.figure = plt.figure()
         self.canvas = FigureCanvas(self.figure)
@@ -339,17 +360,17 @@ class PlotInterface(QtWidgets.QMainWindow):
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.setCentralWidget(self.canvas)
         self.addToolBar(self.toolbar)
-        for i in parent.active_sender.selectedItems():
-            Reader.H5File(parent.get_list_text(i)).read_data().plot()
+        for i in parent.selected_it_l:
+            Reader.H5File(i).read_data().plot()
         self.canvas.draw()
 
 
 class AttrInterface(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
-        super(AttrInterface, self).__init__(parent)
-        self.text = parent.get_list_text(
-            parent.active_sender.selectedItems()[parent.attr_ct])
-        self.confirm_info = "Would you want to save your change?"
+        super(AttrInterface, self).__init__(
+            parent,
+            flags=QtCore.Qt.Dialog)
+        self.text = parent.text
 
         tab_d = Reader.H5File(self.text).get_scan_dict()
 
@@ -362,17 +383,16 @@ class AttrInterface(QtWidgets.QMainWindow):
         self.setCentralWidget(self.table)
         self.setWindowTitle(self.text[1])
         self.scan_d = {}
+
         self.confirm_in = None
+        self.confirm_info = "Would you want to save your change?"
+        self.confirm_method = lambda: self.confirm()
 
     def closeEvent(self, event):
         self.scan_d = {
             self.table.item(i, 0).text(): self.table.item(i, 1).text()
             for i in range(self.table.rowCount())}
-        self.confirm_in = ConfirmInterface(
-            self,
-            confirm_info="Would you want to save your change?",
-            confirm_method = self.confirm
-        )
+        self.confirm_in = ConfirmInterface(self)
         self.confirm_in.show()
 
         event.accept()
@@ -385,42 +405,71 @@ class AttrInterface(QtWidgets.QMainWindow):
 
 
 class ConfirmInterface(QtWidgets.QMainWindow):
-    def __init__(self, confirm_info, confirm_method):
-        super(ConfirmInterface, self).__init__()
+    """
+    This class implement a dialog to confirm some option.
+    Its parent should have an attribute 'confirm_info' to print and
+    a method to operate is confirmed.
+    """
 
-        self.central_widget = QtWidgets.QWidget()
+    def __init__(self, parent):
+        super(ConfirmInterface, self).__init__(
+            parent,
+            flags=QtCore.Qt.Dialog)
+
+        self.central_widget = QtWidgets.QWidget(
+            parent,
+            flags=QtCore.Qt.Dialog
+        )
         self.layout = QtWidgets.QVBoxLayout(self.central_widget)
 
         self.label = QtWidgets.QLabel(self.central_widget)
-        self.label.setText(confirm_info)
-        self.layout.addWidget(self.label)
+        if hasattr(parent, 'confirm_info'):
+            self.label.setText(parent.confirm_info)
+        else:
+            raise NotImplementedError
+        self.layout.addWidget(self.label, alignment=QtCore.Qt.AlignCenter)
 
         self.confirm_button = QtWidgets.QPushButton(self.central_widget)
         self.confirm_button.setText('OK')
-        self.layout.addWidget(self.confirm_button)
+        self.layout.addWidget(
+            self.confirm_button,
+            alignment=QtCore.Qt.AlignVCenter
+        )
         self.cancel_button = QtWidgets.QPushButton(self.central_widget)
         self.cancel_button.setText('Cancel')
-        self.layout.addWidget(self.cancel_button)
+        self.layout.addWidget(
+            self.cancel_button,
+            alignment=QtCore.Qt.AlignVCenter
+        )
 
         self.setWindowTitle('')
 
         self.central_widget.setLayout(self.layout)
         self.setCentralWidget(self.central_widget)
 
-        self.confirm_button.clicked.connect(confirm_method)
+        if callable(getattr(parent, 'confirm_method')):
+            self.confirm_button.clicked.connect(parent.confirm_method)
+        else:
+            raise NotImplementedError
         self.confirm_button.clicked.connect(self.close)
         self.cancel_button.clicked.connect(self.close)
 
 
 class ErrorInterface(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
-        super(ErrorInterface, self).__init__(parent)
+        super(ErrorInterface, self).__init__(
+            parent,
+            flags=QtCore.Qt.Dialog
+        )
 
         self.central_widget = QtWidgets.QWidget(parent)
         self.layout = QtWidgets.QVBoxLayout(self.central_widget)
 
         self.label = QtWidgets.QLabel(self.central_widget)
-        self.label.setText(repr(parent.error))
+        if getattr(parent, 'error'):
+            self.label.setText(repr(parent.error))
+        else:
+            self.label.setText("Unknown Error happened.")
         self.layout.addWidget(self.label)
 
         self.confirm_button = QtWidgets.QPushButton(self.central_widget)
@@ -432,7 +481,6 @@ class ErrorInterface(QtWidgets.QMainWindow):
         self.central_widget.setLayout(self.layout)
         self.setCentralWidget(self.central_widget)
 
-        self.parent = parent
         self.confirm_button.clicked.connect(self.close)
 
 
