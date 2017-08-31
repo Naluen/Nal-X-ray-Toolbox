@@ -17,7 +17,6 @@ from ui.GUI import Ui_MainWindow
 
 
 # TODO: Add a parameter interface
-# TODO: Add delete and rename to right click menu
 # TODO: Add automatic finishing system.
 
 
@@ -186,19 +185,15 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
     @classmethod
     def get_list_text(cls, item):
-        level = cls.get_tree_level(item)
-        if level == 1:
-            return [
-                cls.data_base_directory(),
-                item.parent().text(0) + '/' + item.text(0)
-            ]
-        elif level == 0:
-            return [
-                cls.data_base_directory(),
-                item.text(0)
-            ]
-        else:
-            return ''
+        # Get the H5file name for each item.
+        text_l = []
+        while item.parent():
+            text_l.append(item.text(0))
+            item = item.parent()
+        text_l.append(item.text(0))
+        text_l.reverse()
+        text_s = '/'.join(text_l)
+        return [cls.data_base_directory(), text_s]
 
     def item_add(self):
         text = self.ui.listWidget.currentItem().text(0)
@@ -268,18 +263,32 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.selected_it_l = [
             self.get_list_text(i) for i in self.sender().selectedItems()
         ]
+        self.actived_items = self.sender().selectedItems()
         sub_menu = Submenu(self)
         sub_menu.exec_(self.sender().viewport().mapToGlobal(position))
 
-    def edit_item(self):
-        if len(self.ui.listWidget.selectedItems()) == 1:
-            self.ui.listWidget.selectedItems()[0].setFlags(
-                self.ui.listWidget.selectedItems()[0].flags() |
-                QtCore.Qt.ItemIsEditable)
+    def delete_selected_items(self):
+        root = self.ui.listWidget.invisibleRootItem()
+        for item in self.ui.listWidget.selectedItems():
+            (item.parent() or root).removeChild(item)
+
+    def get_parent_handle(self, item):
+        if item.parent():
+            item = item.parent()
+            self.get_parent_handle(item)
+
+    def edit_item(self, value_s):
+        s_l = self.ui.listWidget.selectedItems()
+        if len(s_l) == 1:
+            text_l = self.get_list_text(s_l[0])
+            t_l = text_l[1].split('/')  # temp_list
+            t_l[-1] = value_s
+            new_name_s = '/'.join(t_l)
+            Reader.H5File(text_l).rename_self(new_name_s)
+            s_l[0].setText(0, value_s)
+
         else:
             pass
-
-
 
 
 class Submenu(QtWidgets.QMenu):
@@ -298,6 +307,9 @@ class Submenu(QtWidgets.QMenu):
 
         self.parent = parent
 
+        self.confirm_method = None  # A void method
+        self.return_method = None  # Void method
+
         self.plot_action = QtWidgets.QAction(self)
         self.attr_action = QtWidgets.QAction(self)
         self.del_action = QtWidgets.QAction(self)
@@ -315,7 +327,7 @@ class Submenu(QtWidgets.QMenu):
         self.plot_action.triggered.connect(self.trigger_plot)
         self.attr_action.triggered.connect(self.trigger_attr)
         self.del_action.triggered.connect(self.trigger_del)
-        self.re_action.triggered.connect(parent.edit_item)
+        self.re_action.triggered.connect(self.trigger_rename)
 
     def trigger_plot(self):
         try:
@@ -339,12 +351,17 @@ class Submenu(QtWidgets.QMenu):
 
     def trigger_del(self):
         self.confirm_info = "Would you like to delete this?"
+        self.confirm_method = self.delete_item
         ConfirmInterface(self).show()
 
-    def confirm_method(self):
+    def delete_item(self):
         for i in self.selected_it_l:
             Reader.H5File(i).delete_self()
-        self.parent.init_group()
+        self.parent.delete_selected_items()
+
+    def trigger_rename(self):
+        self.return_method = self.parent.edit_item
+        InputInterface(self).show()
 
 
 class PlotInterface(QtWidgets.QMainWindow):
@@ -368,8 +385,7 @@ class PlotInterface(QtWidgets.QMainWindow):
 class AttrInterface(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         super(AttrInterface, self).__init__(
-            parent,
-            flags=QtCore.Qt.Dialog)
+            parent, QtCore.Qt.Dialog)
         self.text = parent.text
 
         tab_d = Reader.H5File(self.text).get_scan_dict()
@@ -408,7 +424,7 @@ class ConfirmInterface(QtWidgets.QMainWindow):
     """
     This class implement a dialog to confirm some option.
     Its parent should have an attribute 'confirm_info' to print and
-    a method to operate is confirmed.
+    a method to operate if confirmed.
     """
 
     def __init__(self, parent):
@@ -449,6 +465,55 @@ class ConfirmInterface(QtWidgets.QMainWindow):
 
         if callable(getattr(parent, 'confirm_method')):
             self.confirm_button.clicked.connect(parent.confirm_method)
+        else:
+            raise NotImplementedError
+        self.confirm_button.clicked.connect(self.close)
+        self.cancel_button.clicked.connect(self.close)
+
+
+class InputInterface(QtWidgets.QMainWindow):
+    """
+    This class implement a dialog to Accept a input value.
+    Its parent should have
+    a method with one parameter to operate if confirmed.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(
+            parent=parent,
+            flags=QtCore.Qt.Dialog)
+
+        self.central_widget = QtWidgets.QWidget(
+            parent,
+            flags=QtCore.Qt.Dialog
+        )
+        self.layout = QtWidgets.QVBoxLayout(self.central_widget)
+
+        self.text_edit = QtWidgets.QTextEdit(self.central_widget)
+
+        self.layout.addWidget(self.text_edit, alignment=QtCore.Qt.AlignCenter)
+
+        self.confirm_button = QtWidgets.QPushButton(self.central_widget)
+        self.confirm_button.setText('OK')
+        self.layout.addWidget(
+            self.confirm_button,
+            alignment=QtCore.Qt.AlignVCenter
+        )
+        self.cancel_button = QtWidgets.QPushButton(self.central_widget)
+        self.cancel_button.setText('Cancel')
+        self.layout.addWidget(
+            self.cancel_button,
+            alignment=QtCore.Qt.AlignVCenter
+        )
+
+        self.setWindowTitle('Input...')
+
+        self.central_widget.setLayout(self.layout)
+        self.setCentralWidget(self.central_widget)
+        if callable(getattr(parent, 'return_method')):
+            self.confirm_button.clicked.connect(
+                lambda: parent.return_method(self.text_edit.toPlainText())
+            )
         else:
             raise NotImplementedError
         self.confirm_button.clicked.connect(self.close)
