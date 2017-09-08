@@ -35,6 +35,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.active_sender = None
         self.error = ''
         self.selected_it_l = []
+        self.active_items = []
         # Read data sets namespace from h5py library to library tree view.
         self.init_group()
         # Setup report process config.
@@ -184,7 +185,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.view_sort(self.ui.listWidget)
 
     @classmethod
-    def get_list_text(cls, item):
+    def get_text(cls, item):
         # Get the H5file name for each item.
         text_l = []
         while item.parent():
@@ -261,9 +262,9 @@ class ProgramInterface(QtWidgets.QMainWindow):
     def open_menu(self, position):
 
         self.selected_it_l = [
-            self.get_list_text(i) for i in self.sender().selectedItems()
+            self.get_text(i) for i in self.sender().selectedItems()
         ]
-        self.actived_items = self.sender().selectedItems()
+        self.active_items = self.sender().selectedItems()
         sub_menu = Submenu(self)
         sub_menu.exec_(self.sender().viewport().mapToGlobal(position))
 
@@ -280,7 +281,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
     def edit_item(self, value_s):
         s_l = self.ui.listWidget.selectedItems()
         if len(s_l) == 1:
-            text_l = self.get_list_text(s_l[0])
+            text_l = self.get_text(s_l[0])
             t_l = text_l[1].split('/')  # temp_list
             t_l[-1] = value_s
             new_name_s = '/'.join(t_l)
@@ -360,8 +361,11 @@ class Submenu(QtWidgets.QMenu):
         self.parent.delete_selected_items()
 
     def trigger_rename(self):
-        self.return_method = self.parent.edit_item
-        InputInterface(self).show()
+        if len(self.selected_it_l) == 1:
+            self.return_method = self.parent.edit_item
+            InputInterface(self).show()
+        else:
+            pass
 
 
 class PlotInterface(QtWidgets.QMainWindow):
@@ -392,6 +396,8 @@ class AttrInterface(QtWidgets.QMainWindow):
 
         self.table = QtWidgets.QTableWidget(len(tab_d), 2, self)
 
+        self.item_changed_b = False
+
         for ind, i in enumerate(tab_d):
             self.table.setItem(ind, 0, QtWidgets.QTableWidgetItem(i))
             self.table.setItem(ind, 1, QtWidgets.QTableWidgetItem(tab_d[i]))
@@ -403,13 +409,20 @@ class AttrInterface(QtWidgets.QMainWindow):
         self.confirm_in = None
         self.confirm_info = "Would you want to save your change?"
         self.confirm_method = lambda: self.confirm()
+        self.table.itemChanged.connect(self.item_changed)
+
+    def item_changed(self):
+        self.item_changed_b = True
 
     def closeEvent(self, event):
-        self.scan_d = {
-            self.table.item(i, 0).text(): self.table.item(i, 1).text()
-            for i in range(self.table.rowCount())}
-        self.confirm_in = ConfirmInterface(self)
-        self.confirm_in.show()
+        if self.item_changed_b:
+            self.scan_d = {
+                self.table.item(i, 0).text(): self.table.item(i, 1).text()
+                for i in range(self.table.rowCount())}
+            self.confirm_in = ConfirmInterface(self)
+            self.confirm_in.show()
+        else:
+            pass
 
         event.accept()
 
@@ -489,9 +502,10 @@ class InputInterface(QtWidgets.QMainWindow):
         )
         self.layout = QtWidgets.QVBoxLayout(self.central_widget)
 
-        self.text_edit = QtWidgets.QTextEdit(self.central_widget)
+        self.text_edit = QtWidgets.QLineEdit(self.central_widget)
+        self.text_edit.setText(parent.selected_it_l[0][1].split('/')[-1])
 
-        self.layout.addWidget(self.text_edit, alignment=QtCore.Qt.AlignCenter)
+        self.layout.addWidget(self.text_edit, alignment=QtCore.Qt.AlignLeft)
 
         self.confirm_button = QtWidgets.QPushButton(self.central_widget)
         self.confirm_button.setText('OK')
