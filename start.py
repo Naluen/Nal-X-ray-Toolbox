@@ -381,8 +381,12 @@ class PlotInterface(QtWidgets.QMainWindow):
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.setCentralWidget(self.canvas)
         self.addToolBar(self.toolbar)
+        kwargs = {
+            'align_afm': True,
+            'sub_bk_afm': True,
+        }
         for i in parent.selected_it_l:
-            Reader.H5File(i).read_data().plot()
+            Reader.H5File(i).read_data().plot(**kwargs)
         self.canvas.draw()
 
 
