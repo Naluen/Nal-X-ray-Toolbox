@@ -315,20 +315,28 @@ class Submenu(QtWidgets.QMenu):
         self.attr_action = QtWidgets.QAction(self)
         self.del_action = QtWidgets.QAction(self)
         self.re_action = QtWidgets.QAction(self)
+        self.rcp_action = QtWidgets.QAction(self)
+
         self.plot_action.setText("Plot")
         self.attr_action.setText("Detail")
         self.del_action.setText("Delete")
         self.re_action.setText("Rename")
+        self.rcp_action.setText("Insert Recipe")
+
         self.addAction(self.plot_action)
         self.addAction(self.attr_action)
         self.addAction(self.del_action)
-        self.addAction(self.re_action)
+        if len(self.selected_it_l) == 1:
+            self.addAction(self.re_action)
+            if len(self.selected_it_l[0][1].split('/')) == 1:
+                self.addAction(self.rcp_action)
 
         # Connect popup menu with action.
         self.plot_action.triggered.connect(self.trigger_plot)
         self.attr_action.triggered.connect(self.trigger_attr)
         self.del_action.triggered.connect(self.trigger_del)
         self.re_action.triggered.connect(self.trigger_rename)
+        self.rcp_action.triggered.connect(self.trigger_rcp)
 
     def trigger_plot(self):
         try:
@@ -361,11 +369,11 @@ class Submenu(QtWidgets.QMenu):
         self.parent.delete_selected_items()
 
     def trigger_rename(self):
-        if len(self.selected_it_l) == 1:
-            self.return_method = self.parent.edit_item
-            InputInterface(self).show()
-        else:
-            pass
+        self.return_method = self.parent.edit_item
+        InputInterface(self).show()
+
+    def trigger_rcp(self):
+        InsertRecipeInterface(self).show()
 
 
 class PlotInterface(QtWidgets.QMainWindow):
@@ -454,31 +462,34 @@ class ConfirmInterface(QtWidgets.QMainWindow):
             flags=QtCore.Qt.Dialog
         )
         self.layout = QtWidgets.QVBoxLayout(self.central_widget)
-
         self.label = QtWidgets.QLabel(self.central_widget)
+        self.cancel_button = QtWidgets.QPushButton(self.central_widget)
+        self.confirm_button = QtWidgets.QPushButton(self.central_widget)
+        self.h_layout = QtWidgets.QHBoxLayout(self.central_widget)
+
+        self.cancel_button.setText('Cancel')
+        self.confirm_button.setText('OK')
         if hasattr(parent, 'confirm_info'):
             self.label.setText(parent.confirm_info)
         else:
             raise NotImplementedError
-        self.layout.addWidget(self.label, alignment=QtCore.Qt.AlignCenter)
-
-        self.confirm_button = QtWidgets.QPushButton(self.central_widget)
-        self.confirm_button.setText('OK')
-        self.layout.addWidget(
-            self.confirm_button,
-            alignment=QtCore.Qt.AlignVCenter
-        )
-        self.cancel_button = QtWidgets.QPushButton(self.central_widget)
-        self.cancel_button.setText('Cancel')
-        self.layout.addWidget(
-            self.cancel_button,
-            alignment=QtCore.Qt.AlignVCenter
-        )
 
         self.setWindowTitle('')
 
         self.central_widget.setLayout(self.layout)
         self.setCentralWidget(self.central_widget)
+
+        self.layout.addWidget(self.label, alignment=QtCore.Qt.AlignCenter)
+        self.layout.addLayout(self.h_layout)
+
+        self.h_layout.addWidget(
+            self.confirm_button,
+            alignment=QtCore.Qt.AlignVCenter
+        )
+        self.h_layout.addWidget(
+            self.cancel_button,
+            alignment=QtCore.Qt.AlignVCenter
+        )
 
         if callable(getattr(parent, 'confirm_method')):
             self.confirm_button.clicked.connect(parent.confirm_method)
@@ -510,16 +521,18 @@ class InputInterface(QtWidgets.QMainWindow):
         self.text_edit.setText(parent.selected_it_l[0][1].split('/')[-1])
 
         self.layout.addWidget(self.text_edit, alignment=QtCore.Qt.AlignLeft)
+        self.h_layout = QtWidgets.QHBoxLayout(self.central_widget)
+        self.layout.addLayout(self.h_layout)
 
         self.confirm_button = QtWidgets.QPushButton(self.central_widget)
         self.confirm_button.setText('OK')
-        self.layout.addWidget(
+        self.h_layout.addWidget(
             self.confirm_button,
             alignment=QtCore.Qt.AlignVCenter
         )
         self.cancel_button = QtWidgets.QPushButton(self.central_widget)
         self.cancel_button.setText('Cancel')
-        self.layout.addWidget(
+        self.h_layout.addWidget(
             self.cancel_button,
             alignment=QtCore.Qt.AlignVCenter
         )
@@ -565,6 +578,88 @@ class ErrorInterface(QtWidgets.QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         self.confirm_button.clicked.connect(self.close)
+
+
+class InsertRecipeInterface(QtWidgets.QMainWindow):
+    def __init__(self, parent=None):
+        super(InsertRecipeInterface, self).__init__(
+            parent,
+            flags=QtCore.Qt.Widget)
+
+        self.central_widget = QtWidgets.QWidget(
+            parent,
+            flags=QtCore.Qt.Widget
+        )
+
+        self.h_layout_0 = QtWidgets.QHBoxLayout(self.central_widget)
+        # h and v mean the layout type and the last number is the frame num.
+        self.v_layout_1 = QtWidgets.QVBoxLayout(self.central_widget)
+        self.v_layout_2 = QtWidgets.QVBoxLayout(self.central_widget)
+        self.h_layout_2 = QtWidgets.QHBoxLayout(self.central_widget)
+        self.table = QtWidgets.QTableWidget(0, 6)
+        self.formGroupBox_2 = QtWidgets.QGroupBox("Add new layer")
+
+        self.cancel_button = QtWidgets.QPushButton(
+            'Clear', self.central_widget)
+        self.confirm_button = QtWidgets.QPushButton('Add', self.central_widget)
+
+        self.setWindowTitle('Insert New Recipe...')
+
+        self.setFixedSize(950, 230)
+        self.table.setFixedSize(640, 210)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setHorizontalHeaderLabels(
+            ["Composition", "Thickness(nm)", "Temperature(\u2103)",
+             'Gr(ML/s)', 'Doping', 'Note']
+        )
+
+        self.setCentralWidget(self.central_widget)
+        self.central_widget.setLayout(self.h_layout_0)
+        self.h_layout_0.addWidget(self.table, alignment=QtCore.Qt.AlignLeft)
+        self.h_layout_0.addLayout(self.v_layout_1)
+        # Form Layout part
+        self.v_layout_1.addWidget(self.formGroupBox_2)
+        self.formGroupBox_2.setLayout(self.v_layout_2)
+        self.v_layout_2.addWidget(QtWidgets.QLabel(
+            "The default units are shown as table header,\n"
+            "but other units are acceptable,\njust add them after the num.")
+        , alignment=QtCore.Qt.AlignJustify)
+        self.v_layout_1.addLayout(self.h_layout_2)
+        self.h_layout_2.addWidget(self.confirm_button)
+        self.h_layout_2.addWidget(self.cancel_button)
+
+        self.confirm_info = 'Would you like to save this recipe?'
+        self.confirm_in = ConfirmInterface(self)
+
+        self.confirm_button.clicked.connect(self.add_layer)
+        self.cancel_button.clicked.connect(self.clear_layer)
+
+    def clear_layer(self):
+        for i in self.table.selectionModel().selectedRows():
+            self.table.removeRow(i.row())
+
+    def add_layer(self):
+        self.table.insertRow(self.table.rowCount())
+        combo_box = QtWidgets.QComboBox()
+        from XrdAnalysis import Materials as Comp
+        import inspect
+        for i in inspect.getmembers(Comp, inspect.isclass):
+            if i[0] is not 'Material':
+                combo_box.addItem(i[0])
+        self.table.setCellWidget(self.table.rowCount() - 1, 0, combo_box)
+        combo_box_2 = QtWidgets.QComboBox()
+        combo_box_2.addItem("None")
+        combo_box_2.addItem("n")
+        combo_box_2.addItem("p")
+        self.table.setCellWidget(self.table.rowCount() - 1, 4, combo_box_2)
+
+    def closeEvent(self, event):
+        self.confirm_in.show()
+
+        event.accept()
+
+    def confirm_method(self):
+        pass
 
 
 if __name__ == '__main__':
