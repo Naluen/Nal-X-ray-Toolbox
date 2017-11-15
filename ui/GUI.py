@@ -131,8 +131,6 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuEdit.menuAction())
 
-
-
         self.re_translate_ui(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
@@ -153,7 +151,6 @@ class Ui_MainWindow(object):
         self.menuEdit.setTitle(_translate("MainWindow", "Edit"))
         self.actionOpen_2.setText(_translate("MainWindow", "Open"))
         self.actionParameters.setText(_translate("MainWindow", "Parameters"))
-
 
 
 if __name__ == "__main__":

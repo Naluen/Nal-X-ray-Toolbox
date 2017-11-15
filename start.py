@@ -36,6 +36,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.error = ''
         self.selected_it_l = []
         self.active_items = []
+        self.pre_inter = PreferenceInterface()
         # Read data sets namespace from h5py library to library tree view.
         self.init_group()
         # Setup report process config.
@@ -65,6 +66,13 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.listWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.ui.listWidget.customContextMenuRequested.connect(self.open_menu)
         # Right popup menu setup.
+        self.q_action = QtWidgets.QAction("Preference")
+        self.ui.menuEdit.addAction(self.q_action)
+        self.q_action.triggered.connect(self.preference_popup_event)
+
+
+    def preference_popup_event(self):
+        self.pre_inter.show()
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls:
@@ -273,10 +281,10 @@ class ProgramInterface(QtWidgets.QMainWindow):
         for item in self.ui.listWidget.selectedItems():
             (item.parent() or root).removeChild(item)
 
-    def get_parent_handle(self, item):
+    def get_top_item(self, item):
         if item.parent():
             item = item.parent()
-            self.get_parent_handle(item)
+            self.get_top_item(item)
 
     def edit_item(self, value_s):
         s_l = self.ui.listWidget.selectedItems()
@@ -321,7 +329,7 @@ class Submenu(QtWidgets.QMenu):
         self.attr_action.setText("Detail")
         self.del_action.setText("Delete")
         self.re_action.setText("Rename")
-        self.rcp_action.setText("Insert Recipe")
+        self.rcp_action.setText("Recipe")
 
         self.addAction(self.plot_action)
         self.addAction(self.attr_action)
@@ -373,6 +381,7 @@ class Submenu(QtWidgets.QMenu):
         InputInterface(self).show()
 
     def trigger_rcp(self):
+        self.text = self.selected_it_l[0]
         InsertRecipeInterface(self).show()
 
 
@@ -552,7 +561,9 @@ class InputInterface(QtWidgets.QMainWindow):
 
 
 class ErrorInterface(QtWidgets.QMainWindow):
+    """Call when any erorr catched.""""
     def __init__(self, parent=None):
+        """Init."""
         super(ErrorInterface, self).__init__(
             parent,
             flags=QtCore.Qt.Dialog
@@ -581,7 +592,12 @@ class ErrorInterface(QtWidgets.QMainWindow):
 
 
 class InsertRecipeInterface(QtWidgets.QMainWindow):
+    """
+    The class provide a interface window to insert the recipe information.
+    """
+
     def __init__(self, parent=None):
+        """Init."""
         super(InsertRecipeInterface, self).__init__(
             parent,
             flags=QtCore.Qt.Widget)
@@ -590,6 +606,8 @@ class InsertRecipeInterface(QtWidgets.QMainWindow):
             parent,
             flags=QtCore.Qt.Widget
         )
+
+        self.text = parent.text
 
         self.h_layout_0 = QtWidgets.QHBoxLayout(self.central_widget)
         # h and v mean the layout type and the last number is the frame num.
@@ -613,6 +631,33 @@ class InsertRecipeInterface(QtWidgets.QMainWindow):
              'Gr(ML/s)', 'Doping', 'Note']
         )
 
+        import numpy
+        p_q_numpy = Reader.H5File(self.text).get_rcp()
+
+        self.p_q_numpy = p_q_numpy
+        if self.p_q_numpy:
+            h, v = self.p_q_numpy.shape
+            for i in range(h):
+                self.add_layer()
+                for j in range(v):
+                    if isinstance(
+                            self.table.cellWidget(i, j), QtWidgets.QComboBox):
+                        self.table.cellWidget(i, j).setCurrentIndex(
+                            int(self.p_q_numpy[i, j])
+                        )
+                    else:
+                        if isinstance(self.p_q_numpy[i, j], numpy.int32):
+                            self.table.setItem(
+                                i, j, QtWidgets.QTableWidgetItem(
+                                    self.p_q_numpy[i, j])
+                            )
+                        else:
+                            self.table.setItem(
+                                i, j, QtWidgets.QTableWidgetItem(
+                                    self.p_q_numpy[i, j].decode(
+                                        encoding='UTF-8'))
+                            )
+
         self.setCentralWidget(self.central_widget)
         self.central_widget.setLayout(self.h_layout_0)
         self.h_layout_0.addWidget(self.table, alignment=QtCore.Qt.AlignLeft)
@@ -622,8 +667,8 @@ class InsertRecipeInterface(QtWidgets.QMainWindow):
         self.formGroupBox_2.setLayout(self.v_layout_2)
         self.v_layout_2.addWidget(QtWidgets.QLabel(
             "The default units are shown as table header,\n"
-            "but other units are acceptable,\njust add them after the num.")
-        , alignment=QtCore.Qt.AlignJustify)
+            "but other units are acceptable,\njust add them after the num."),
+            alignment=QtCore.Qt.AlignJustify)
         self.v_layout_1.addLayout(self.h_layout_2)
         self.h_layout_2.addWidget(self.confirm_button)
         self.h_layout_2.addWidget(self.cancel_button)
@@ -641,11 +686,13 @@ class InsertRecipeInterface(QtWidgets.QMainWindow):
     def add_layer(self):
         self.table.insertRow(self.table.rowCount())
         combo_box = QtWidgets.QComboBox()
-        from XrdAnalysis import Materials as Comp
-        import inspect
-        for i in inspect.getmembers(Comp, inspect.isclass):
-            if i[0] is not 'Material':
-                combo_box.addItem(i[0])
+
+        mat = Reader.request_mat(
+            os.path.join(os.path.dirname(sys.argv[0]), "XrdAnalysis", "Mat.h5")
+        )
+        # TODO: Replace to preference dict.
+        _ = [combo_box.addItem(i[0]) for i in mat]
+
         self.table.setCellWidget(self.table.rowCount() - 1, 0, combo_box)
         combo_box_2 = QtWidgets.QComboBox()
         combo_box_2.addItem("None")
@@ -654,12 +701,73 @@ class InsertRecipeInterface(QtWidgets.QMainWindow):
         self.table.setCellWidget(self.table.rowCount() - 1, 4, combo_box_2)
 
     def closeEvent(self, event):
-        self.confirm_in.show()
+        """
+        Call confirm interface when close if any change.
 
-        event.accept()
+        :param event: Close event
+        :return: None
+        """
+        import numpy as np
+        logging.debug(np.asarray(self.q_numpy(self.table)))
+        logging.debug(np.asarray(self.p_q_numpy))
+        logging.debug(
+            np.all(np.asarray(self.q_numpy(self.table)) ==
+                   np.asarray(self.p_q_numpy))
+        )
+        if not np.all(
+                np.asarray(self.q_numpy(self.table)) ==
+                np.asarray(self.p_q_numpy)):
+            self.confirm_in.show()
+
+            event.accept()
 
     def confirm_method(self):
-        pass
+        """Call it if click OK when close."""
+        q_numpy = self.q_numpy(self.table)
+        Reader.H5File(self.text).set_rcp(q_numpy)
+
+    @staticmethod
+    def q_numpy(q_table):
+        """Transform QTable to Numpy Array."""
+        import numpy
+        q_list = []
+        for i in range(q_table.rowCount()):
+            for k in range(q_table.columnCount()):
+                if isinstance(q_table.item(i, k), QtWidgets.QTableWidgetItem):
+                    text = q_table.item(i, k).text()
+                    q_list.append(
+                        text.encode(encoding='UTF-8', errors='strict'))
+                elif q_table.item(i, k) is None:
+                    try:
+                        text = q_table.cellWidget(i, k).currentIndex()
+                    except AttributeError:
+                        text = 0
+                    q_list.append(text)
+                else:
+                    raise TypeError
+
+        return numpy.asarray(q_list).reshape(
+            q_table.rowCount(), q_table.columnCount())
+
+
+class PreferenceInterface(QtWidgets.QMainWindow):
+    def __init__(self, parent=None):
+        super(PreferenceInterface, self).__init__(
+            parent,
+            flags=QtCore.Qt.Widget)
+
+        self.central_widget = QtWidgets.QWidget(
+            parent,
+            flags=QtCore.Qt.Widget
+        )
+        self.bar = QtWidgets.QTabBar()
+        self.bar.addTab("General")
+        self.bar.addTab("PL")
+        t_lt = QtWidgets.QHBoxLayout()
+        t_lt.addWidget(self.bar)
+
+        self.setTab
+        self.setCentralWidget(self.central_widget)
 
 
 if __name__ == '__main__':
