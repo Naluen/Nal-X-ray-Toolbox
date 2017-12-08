@@ -1,0 +1,1 @@
+pyuic5 -x -o .\rcp.py .\rcp.ui

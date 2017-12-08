@@ -1,0 +1,27 @@
+MODULE:
+  FltFile:
+    name: FltFile
+  H5File:
+    name: H5File
+  PfProc:
+    name: PfProc
+  RSMProc:
+    name: RSMProc
+  RawFile:
+    name: RawFile
+  SinScaProc:
+    name: SinScaProc
+  TwoDAFMProc:
+    name: TwoDAFMProc
+PREFERENCE:
+  GENERAL:
+    db_lib_path: C:/Users/hang/Documents/GitHub/foton_report_genarator/lib/mat.h5
+    db_path: C:/Users/hang/Dropbox/Experimental_Data/xrd_lib.h5
+TYPE_DICT:
+  .flt: FltFile
+  .h5: H5File
+  .raw: RawFile
+  PolesFigure: PfProc
+  RSM: RSMProc
+  SingleScan: SinScaProc
+  raw_afm: TwoDAFMProc

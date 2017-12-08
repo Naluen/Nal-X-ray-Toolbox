@@ -1,1 +1,1 @@
-pyuic5 -x -o C:\Users\ang\Dropbox\Programme\PolesFig\ui\GUI.py C:\Users\ang\Dropbox\Programme\PolesFig\ui\GUI.ui
+pyuic5 -x -o .\GUI.py .\GUI.ui
