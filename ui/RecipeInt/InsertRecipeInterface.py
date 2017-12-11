@@ -98,20 +98,16 @@ class InsertRecipeInterface(QtWidgets.QWidget):
 
         for i in range(h):
             for k in range(v):
-                if isinstance(q_table.item(i, k), QtWidgets.QTableWidgetItem):
-                    text = na[i, k].decode(encoding='UTF-8')
-                    self.table.setItem(
+                print(type(q_table.item(i, k)))
+                try:
+                    widget = q_table.cellWidget(i, k)
+                    widget.setCurrentIndex(int(na[i, k]))
+                except AttributeError:
+                    text = str(na[i, k].decode('utf-8'))
+                    q_table.setItem(
                         i, k, QtWidgets.QTableWidgetItem(text)
                     )
-                elif q_table.item(i, k) is None:
-                    widget = q_table.cellWidget(i, k)
-                    # If is combobox item.
-                    try:
-                        widget.setCurrentIndex(int(na[i, k]))
-                    except AttributeError:
-                        pass
-                else:
-                    raise TypeError
+
 
         return q_table
 

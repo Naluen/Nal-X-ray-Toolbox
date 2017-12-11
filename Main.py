@@ -23,6 +23,19 @@ GENERAL = 'GENERAL'
 MAT_LIB = 'db_lib_path'
 
 
+# TODO: Add search bar for recipe
+# TODO: Plot recipe.
+
+def block_tree_signal(func):
+    def wrapper(self, **kw):
+        # self.ui.treeWidget.blockSignals(True)
+        res = func(self, **kw)
+        # self.ui.treeWidget.blockSignals(False)
+        return res
+
+    return wrapper
+
+
 class ProgramInterface(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -38,11 +51,6 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
         self.preference_inf = PreferenceInterface()
         self.preference_inf.upt_cfg.connect(self._upt_cfg)
-
-        self.insert_rcp_inf = InsertRecipeInterface()
-        self.insert_rcp_inf.rcp.connect(self._add_rcp)
-
-        self.attrInt = TableInt()
 
         self.ui.treeWidget.setSelectionMode(
             QtWidgets.QAbstractItemView.ExtendedSelection
@@ -211,10 +219,9 @@ class ProgramInterface(QtWidgets.QMainWindow):
             return
         self._save_data(raw_file_name)
 
+    @block_tree_signal
     def delete_items(self):
         """Delete items from lib."""
-        self.ui.treeWidget.blockSignals(True)
-
         root = self.ui.treeWidget.invisibleRootItem()
         item_l = self.ui.treeWidget.selectedItems()
         self.temp_confirm = ConfirmInterface()
@@ -234,15 +241,13 @@ class ProgramInterface(QtWidgets.QMainWindow):
             return
 
         del self.temp_confirm
-        self.ui.treeWidget.blockSignals(False)
 
+    @block_tree_signal
     def enable_editable(self):
-        self.ui.treeWidget.blockSignals(True)
         item = self.ui.treeWidget.currentItem()
         self.f_path = self._item2h5(item)
         item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
         self.ui.treeWidget.editItem(item, 0)
-        self.ui.treeWidget.blockSignals(False)
 
     def rename_item(self, f_path):
         c_path = self._item2h5(self.ui.treeWidget.currentItem())
@@ -276,9 +281,8 @@ class ProgramInterface(QtWidgets.QMainWindow):
                 "All selected item should in the same level")
             return
 
+    @block_tree_signal
     def paste_items(self):
-        self.ui.treeWidget.blockSignals(True)
-
         # Check the destiny to be group.
         n_grp = self._item2h5(self.ui.treeWidget.currentItem())
         if self.lib.is_data_set(n_grp) != 1:
@@ -288,7 +292,14 @@ class ProgramInterface(QtWidgets.QMainWindow):
                 "The destiny should be a group.")
             return
         # Cut in library
-        # TODO Over write alert
+        is_in_lib = [(self._item2h5(i) in self.lib.fh)
+                     for i in self.cut_items_l + self.copy_items_l]
+        if any(is_in_lib):
+            overwrite_alert = ConfirmInterface()
+            overwrite_alert.set_text("Overwrite data in destiny group?")
+            overwrite_alert.exec()
+            if not overwrite_alert.get_bool:
+                return
         root = self.ui.treeWidget.invisibleRootItem()
         for i in self.cut_items_l:
             f_path = self._item2h5(i)
@@ -311,8 +322,6 @@ class ProgramInterface(QtWidgets.QMainWindow):
                 n_ch = i.clone()
                 self.ui.treeWidget.currentItem().addChild(n_ch)
             self.lib.fh[n_path] = f_path
-
-        self.ui.treeWidget.blockSignals(False)
 
     def _save_data(self, raw_file_name):
         try:
@@ -383,6 +392,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         sub_menu.exec_(self.sender().viewport().mapToGlobal(position))
 
     def detail_item(self):
+        self.attrInt = TableInt()
         item = self.ui.treeWidget.currentItem()
         h5_path = self._item2h5(item)
         attrs = self.lib.fh[h5_path].attrs
@@ -402,6 +412,9 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.attrInt.show()
 
     def _insert_rcp(self):
+        insert_rcp_inf = InsertRecipeInterface()
+        insert_rcp_inf.rcp.connect(self._add_rcp)
+
         mat = list(self._mat_lib.fh['semiconductor'].keys())
         key = [self._mat_lib.fh['semiconductor'][i]['print'][()] for i in mat]
         ind = [self._mat_lib.fh['semiconductor'][i]['index'][()] for i in mat]
@@ -409,23 +422,17 @@ class ProgramInterface(QtWidgets.QMainWindow):
                else str(x) for _, x in sorted(zip(ind, key))
                ]
 
-        self.insert_rcp_inf.set_mat(key)
-        c_path = self.lib.fh[self._item2h5(self.ui.treeWidget.currentItem())]
-        if 'rcp' in c_path:
-            rcp = c_path['rcp'][()]
-        else:
-            rcp = None
-        self.insert_rcp_inf.set_rcp(rcp)
+        insert_rcp_inf.set_mat(key)
+        f_path = self._item2h5(self.ui.treeWidget.currentItem())
+        rcp = self.lib.get_rcp(f_path)
+        insert_rcp_inf.set_rcp(rcp)
 
-        self.insert_rcp_inf.show()
+        insert_rcp_inf.show()
 
     @QtCore.pyqtSlot(numpy.ndarray)
     def _add_rcp(self, msg):
-        c_path = self.lib.fh[self._item2h5(self.ui.treeWidget.currentItem())]
-        if 'rcp' in c_path:
-            del c_path['rcp']
-        c_path['rcp'] = msg
-        c_path['rcp'].attrs['Type'] = "Recipe"
+        f_path = self._item2h5(self.ui.treeWidget.currentItem())
+        self.lib.set_rcp(f_path, msg)
 
     @QtCore.pyqtSlot(dict)
     def set_attr(self, message):

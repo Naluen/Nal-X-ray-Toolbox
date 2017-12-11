@@ -12,6 +12,7 @@ class H5File(FileModule):
     import h5py
 
     def __init__(self):
+        super(H5File, self).__init__()
         self.fh = None
 
     @property
@@ -200,3 +201,31 @@ class H5File(FileModule):
             return 1
         else:
             return 2
+
+    def set_rcp(self, path, rcp):
+        path = str(path)
+        if 'Recipe' not in self.fh:
+            self.fh.create_group("Recipe")
+        if path.split('/')[-1] in self.fh['Recipe']:
+            del self.fh['Recipe'][path.split('/')[-1]]
+        rcp_dt = self.fh['Recipe'].create_dataset(
+            path.split('/')[-1],
+            data=rcp
+        )
+        rcp_dt.attrs['Type'] = "Recipe"
+        self.fh[path].attrs['rcp'] = rcp
+
+    def get_rcp(self, path):
+        if 'Recipe' not in self.fh:
+            self.fh.create_group("Recipe")
+            return None
+        else:
+            if 'rcp' in self.fh[path].attrs:
+                mat = numpy.asarray(self.fh[path].attrs['rcp'])
+                mat.resize(int(len(mat)/6), 6)
+
+                return mat
+            # elif path.split('/')[-1] in self.fh['Recipe']:
+            #     return self.fh['Recipe'][path.split('/')[-1]]
+            else:
+                return None

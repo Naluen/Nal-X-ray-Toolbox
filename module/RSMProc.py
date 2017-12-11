@@ -10,7 +10,9 @@ from matplotlib.colors import LogNorm
 from module.Module import ProcModule
 
 LAMBDA = 0.154055911278
-LATTICE_GAP = 0.54505
+LATTICE_GAP = 0.
+
+# TODO Select area.
 
 
 class RSMProc(ProcModule):
