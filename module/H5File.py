@@ -60,7 +60,6 @@ class H5File(FileModule):
                 chunks=True,
                 compression="gzip",
             )
-            print(dt)
 
             for i in attr.keys():
                 logging.debug("Writing {0}: {1}".format(i, attr[i]))

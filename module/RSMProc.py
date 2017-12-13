@@ -10,9 +10,26 @@ from matplotlib.colors import LogNorm
 from module.Module import ProcModule
 
 LAMBDA = 0.154055911278
-LATTICE_GAP = 0.
+LATTICE_GAP = 0.54505
+
 
 # TODO Select area.
+
+def _bragg_angle_cal(lattice, xtal_hkl):
+    """
+    Calculation the bragg angle based on the crystal miller
+    index.
+    >>> hkl_l = [(0, 0, 2), (0, 0, 4), (0, 0, 6), (2, 2, -4)]
+    >>> hkl_d = {i: _bragg_angle_cal(0.54505, i) for i in hkl_l}
+    >>> assert abs(hkl_d[(0, 0, 2)]-32.8) < 0.1
+    """
+
+    rms = lambda x: np.sqrt(np.sum(np.asarray(x) ** 2))
+    bragg_angle = np.arcsin(
+        LAMBDA / (2 * lattice / rms(xtal_hkl))
+    )
+
+    return np.rad2deg(bragg_angle) * 2
 
 
 class RSMProc(ProcModule):
@@ -30,20 +47,6 @@ class RSMProc(ProcModule):
     @property
     def supp_type(self):
         return "RMS",
-
-    @staticmethod
-    def _bragg_angle_cal(xtal_hkl):
-        """
-        Calculation the bragg angle based on the crystal miller
-        index.
-        """
-
-        rms = lambda x: np.sqrt(np.sum(np.asarray(x) ** 2))
-        bragg_angle = np.arcsin(
-            LAMBDA / (2 * LATTICE_GAP / rms(xtal_hkl))
-        )
-
-        return np.rad2deg(bragg_angle) * 2
 
     @staticmethod
     def _fill_array(array):
@@ -91,7 +94,7 @@ class RSMProc(ProcModule):
         omega = self.attr['omega_data']
 
         hkl_l = [(0, 0, 2), (0, 0, 4), (0, 0, 6), (2, 2, -4)]
-        hkl_d = {i: self._bragg_angle_cal(i) for i in hkl_l}
+        hkl_d = {i: _bragg_angle_cal(LATTICE_GAP, i) for i in hkl_l}
         hkl = [i for i in hkl_d if hkl_d[i] - 3 <= tth[0][0] <= hkl_d[i] + 3]
         if len(hkl) is not 1:
             logging.error('HKL Value Error')

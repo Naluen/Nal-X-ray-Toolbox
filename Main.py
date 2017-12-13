@@ -28,9 +28,9 @@ MAT_LIB = 'db_lib_path'
 
 def block_tree_signal(func):
     def wrapper(self, **kw):
-        # self.ui.treeWidget.blockSignals(True)
+        self.ui.treeWidget.blockSignals(True)
         res = func(self, **kw)
-        # self.ui.treeWidget.blockSignals(False)
+        self.ui.treeWidget.blockSignals(False)
         return res
 
     return wrapper
@@ -48,6 +48,19 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.copy_items_l = []
         with open(CONFIG, 'r') as yml_file:
             self.cfg = yaml.safe_load(yml_file)
+
+        try:
+            self._self_checker()
+        except NotImplementedError as e:
+            self._error = QtWidgets.QErrorMessage(self)
+            self._error.setWindowModality(QtCore.Qt.WindowModal)
+            self._error.showMessage(str(e))
+            self._error.accepted.connect(self.close)
+            self._error.rejected.connect(self.close)
+
+        # Initiate the modules and library.
+        self._init_module()
+        self._init_lib()
 
         self.preference_inf = PreferenceInterface()
         self.preference_inf.upt_cfg.connect(self._upt_cfg)
@@ -67,25 +80,13 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.actionPaste.triggered.connect(self.paste_items)
         self.ui.action_Detail.triggered.connect(self.detail_item)
         self.ui.action_Plot.triggered.connect(self.plot_item)
+        self.ui.actionAdd_Group.triggered.connect(self.add_grp)
 
         self.ui.actionInsert_Recipe.triggered.connect(self._insert_rcp)
 
         self.ui.actionParameters.triggered.connect(self._open_pref)
 
         self.ui.treeWidget.header().close()
-
-        try:
-            self._self_checker()
-        except NotImplementedError as e:
-            self._error = QtWidgets.QErrorMessage(self)
-            self._error.setWindowModality(QtCore.Qt.WindowModal)
-            self._error.showMessage(str(e))
-            self._error.accepted.connect(self.close)
-            self._error.rejected.connect(self.close)
-
-        # Initiate the modules and library.
-        self._init_module()
-        self._init_lib()
 
         # Popup menu setup for ui.treeview.
         self.ui.treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -189,21 +190,33 @@ class ProgramInterface(QtWidgets.QMainWindow):
             return
 
         self.ui.treeWidget.clear()
+        root_item = QtWidgets.QTreeWidgetItem(self.ui.treeWidget)
+        root_item.setText(0, '/')
 
         def post_order(g, l):
             for i in l.keys():
                 if hasattr(l[i], "keys"):
                     gp = QtWidgets.QTreeWidgetItem(g, [i])
+                    gp.setFlags(gp.flags() | QtCore.Qt.ItemIsEditable)
                     post_order(gp, l[i])
                 else:
-                    QtWidgets.QTreeWidgetItem(g, [i])
+                    item = QtWidgets.QTreeWidgetItem(g, [i])
+                    item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
 
-        post_order(self.ui.treeWidget, self.lib.fh)
+        post_order(root_item, self.lib.fh)
 
-        self._mat_lib = self._get_file_reader(
-            self.cfg[PREFERENCE][GENERAL][MAT_LIB])
+        root_item.setExpanded(True)
 
-        # self.view_sort(self.ui.treeWidget)
+        try:
+            self._mat_lib = self._get_file_reader(
+                self.cfg[PREFERENCE][GENERAL][MAT_LIB])
+        except:
+            self.cfg[PREFERENCE][GENERAL][MAT_LIB] = os.path.join(
+                DIR, 'lib', 'mat.h5')
+            self._mat_lib = self._get_file_reader(
+                self.cfg[PREFERENCE][GENERAL][MAT_LIB])
+
+            # self.view_sort(self.ui.treeWidget)
 
     def _add_data(self):
         """Menu action to import data from file.
@@ -218,6 +231,28 @@ class ProgramInterface(QtWidgets.QMainWindow):
         if not raw_file_name:
             return
         self._save_data(raw_file_name)
+
+    @block_tree_signal
+    def add_grp(self):
+        item = self.ui.treeWidget.currentItem()
+        ch_text_l = [item.child(i).text(0) for i in range(item.childCount())]
+
+        new_item = QtWidgets.QTreeWidgetItem(item)
+        if "New Group" not in ch_text_l:
+            new_item.setText(0, "New Group")
+        else:
+            i = 1
+            while 'New Group {0}'.format(i) in ch_text_l:
+                i += 1
+            new_item.setText(0, 'New Group {0}'.format(i))
+
+        new_item.setFlags(new_item.flags() | QtCore.Qt.ItemIsEditable)
+        self.ui.treeWidget.clearSelection()
+        new_item.setSelected(True)
+        self.ui.treeWidget.editItem(new_item, 0)
+
+        self.f_path = self._item2h5(new_item)
+        self.lib.fh.create_group(self.f_path)
 
     @block_tree_signal
     def delete_items(self):
@@ -246,13 +281,26 @@ class ProgramInterface(QtWidgets.QMainWindow):
     def enable_editable(self):
         item = self.ui.treeWidget.currentItem()
         self.f_path = self._item2h5(item)
-        item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
         self.ui.treeWidget.editItem(item, 0)
 
     def rename_item(self, f_path):
-        c_path = self._item2h5(self.ui.treeWidget.currentItem())
-        logging.debug(f_path + '->' + c_path)
-        self.lib.fh.move(f_path, c_path)
+        c_path = self._item2h5(self.ui.treeWidget.selectedItems()[0])
+        print(c_path)
+        if c_path in self.lib.fh:
+            overwrite_alert = ConfirmInterface()
+            overwrite_alert.set_text("Overwrite data in destiny group?")
+            overwrite_alert.exec()
+            if overwrite_alert.get_bool:
+                root = self.ui.treeWidget.invisibleRootItem()
+                item = self._h52item(c_path)
+                (item.parent() or root).removeChild(item)
+                del self.lib.fh[c_path]
+                logging.debug(f_path + '->' + c_path)
+                self.lib.fh.move(f_path, c_path)
+                self.lib.fh.flush()
+        else:
+            self.lib.fh.move(f_path, c_path)
+            self.lib.fh.flush()
 
     def cut_items(self):
         self.cut_items_l = []
@@ -576,13 +624,34 @@ class ProgramInterface(QtWidgets.QMainWindow):
         """
         text_l = []
 
-        while item.parent():
+        while hasattr(item, 'parent') and item.parent():
             text_l.append(item.text(0))
             item = item.parent()
         text_l.append(item.text(0))
         text_l.reverse()
         text_s = '/'.join(text_l)
         return text_s
+
+    def _h52item(self, h5_s):
+        """Get the corresponding h5 path of a qTreeItem
+
+        :param h5: The h5 path
+        :return: Corresponding qTreeItem path
+        """
+        text_l = h5_s.split('/')
+        root = self.ui.treeWidget.invisibleRootItem()
+        items = self.ui.treeWidget.findItems(
+            text_l[-1],
+            QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive,
+            0
+        )
+        text_l.pop()
+        for i in items:
+            p_item = i.parent() or root
+            if self._item2h5(p_item) == '/'.join(text_l):
+                return i
+            else:
+                pass
 
     def closeEvent(self, *args, **kwargs):
         self._write_cfg()
@@ -602,6 +671,8 @@ class SubMenu(QtWidgets.QMenu):
         self.addAction(parent.ui.actionDelete_Data)
         self.addAction(parent.ui.action_Detail)
         self.addAction(parent.ui.action_Plot)
+        self.addAction(parent.ui.actionInsert_Recipe)
+        self.addAction(parent.ui.actionAdd_Group)
 
 
 if __name__ == '__main__':

@@ -75,6 +75,9 @@ class RawFile(FileModule):
 
                 data = (self.two_d_data(data_list, 1) /
                         self.one_d_data(data_list, '_STEPTIME'))
+                attr['vit_ang'] = (
+                    (phi_data[0, 1] - phi_data[0, 0]) /
+                    self.one_d_data(data_list, '_STEPTIME')[0][0])
                 attr['Type'] = "PolesFigure"
 
         elif attr['_TYPE'] == 'RSMPlot':

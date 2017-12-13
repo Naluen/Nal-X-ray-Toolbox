@@ -53,6 +53,7 @@
      <string>Library</string>
     </property>
     <addaction name="actionImport_Data"/>
+    <addaction name="actionAdd_Group"/>
     <addaction name="actionCut"/>
     <addaction name="actionCopy"/>
     <addaction name="actionDelete_Data"/>
@@ -211,7 +212,21 @@
   </action>
   <action name="actionInsert_Recipe">
    <property name="text">
-    <string>Insert Recipe</string>
+    <string>Recipe</string>
+   </property>
+   <property name="toolTip">
+    <string>Recipe</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Alt+Shift+R</string>
+   </property>
+  </action>
+  <action name="actionAdd_Group">
+   <property name="text">
+    <string>Add Group</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Alt+Shift+A</string>
    </property>
   </action>
  </widget>

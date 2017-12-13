@@ -98,15 +98,17 @@ class InsertRecipeInterface(QtWidgets.QWidget):
 
         for i in range(h):
             for k in range(v):
-                print(type(q_table.item(i, k)))
                 try:
                     widget = q_table.cellWidget(i, k)
                     widget.setCurrentIndex(int(na[i, k]))
                 except AttributeError:
-                    text = str(na[i, k].decode('utf-8'))
-                    q_table.setItem(
-                        i, k, QtWidgets.QTableWidgetItem(text)
-                    )
+                    if isinstance(na[i, k], (bytes, numpy.bytes_)):
+                        text = str(na[i, k].decode('utf-8'))
+                        q_table.setItem(
+                            i, k, QtWidgets.QTableWidgetItem(text)
+                        )
+                    else:
+                        pass
 
 
         return q_table

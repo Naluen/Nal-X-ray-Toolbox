@@ -12,6 +12,25 @@ from matplotlib.colors import LogNorm
 from module.Module import ProcModule
 from module.RawFile import RawFile
 
+LAMBDA = 0.154055911278
+
+
+def _bragg_angle_cal(lattice, xtal_hkl):
+    """
+    Calculation the bragg angle based on the crystal miller
+    index.
+    >>> hkl_l = [(0, 0, 2), (0, 0, 4), (0, 0, 6), (2, 2, -4)]
+    >>> hkl_d = {i: _bragg_angle_cal(0.54505, i) for i in hkl_l}
+    >>> assert abs(hkl_d[(0, 0, 2)]-32.8) < 0.1
+    """
+
+    rms = lambda x: np.sqrt(np.sum(np.asarray(x) ** 2))
+    bragg_angle = np.arcsin(
+        LAMBDA / (2 * lattice / rms(xtal_hkl))
+    )
+
+    return np.rad2deg(bragg_angle) * 2
+
 
 class PfProc(ProcModule):
     refresh_canvas = QtCore.pyqtSignal(bool)
@@ -38,7 +57,7 @@ class PfProc(ProcModule):
         self.q_int_line.textChanged.connect(
             partial(self.param.__setitem__, 'Beam Int'))
         q_int_button = self.q_int_line.addAction(
-            QtGui.QIcon(QtGui.QPixmap('module/icons/more.png')),
+            QtGui.QIcon(QtGui.QPixmap('icons/more.png')),
             QtWidgets.QLineEdit.TrailingPosition)
         q_int_button.triggered.connect(self._get_bm_int)
         layout.addWidget(self.q_int_line)
@@ -54,6 +73,27 @@ class PfProc(ProcModule):
     @property
     def supp_type(self):
         return "PolesFigure",
+
+    @staticmethod
+    def i_theory(i_0, v, theta, omega, th, index):
+        RO2 = 7.94E-30
+        LAMBDA = 1.5418E-10
+        F_GAP = 3249.001406
+        L = 1.846012265
+        P = 0.853276107
+        V_A = 5.4506E-10 ** 3
+        U = 1000000 / 37.6416
+        c_0 = (
+            np.sin(2 * theta - omega) /
+            (np.sin(2 * theta - omega) + np.sin(omega))
+        )
+        c_1 = (1 - np.exp(
+            0 - U * th * (1 / np.sin(omega) + 1 / np.sin(2 * theta - omega))))
+        c_2 = RO2 * LAMBDA ** 3 * F_GAP * P * L / V_A ** 2
+
+        i_theo = i_0 * c_0 * c_1 * c_2 * index / (v * th)
+
+        return i_theo
 
     def _get_bm_int(self):
         def file2int(i):
@@ -199,7 +239,7 @@ class PfProc(ProcModule):
         del self._selected_square
 
         outer_index_list = [i.cr_l for i in self.res[2][:4]]
-        self._sq_pk_int(
+        self._sq_pk_integrate(
             repaint=False,
             outer_index_list=outer_index_list
         )
@@ -226,11 +266,20 @@ class PfProc(ProcModule):
     # Peak Detection.
     def _pk_search(self):
         if self.param['Advanced Selection']:
-            self.res = self._poly_pk_int()
+            self.res = self._poly_pk_integrate()
         else:
-            self.res = self._sq_pk_int()
+            self.res = self._sq_pk_integrate()
 
-    def _poly_pk_int(self, repaint=True):
+    def _poly_pk_integrate(self, repaint=True):
+        """
+        Integrate Peak intensity with polygon method.
+        :param
+        repaint: if re-draw the canvas.
+        :return:
+        int_vsot_bg_m: The intensity of the peak without background 1*4 matrix
+        ind_l: The middle position of square. Same format as outer_index_list.
+            Format: [[chi1, phi1], [chi2, phi2], [chi3, phi3], [chi4, phi4]]
+        """
         from scipy.ndimage.filters import gaussian_filter
         from skimage import img_as_float
         from skimage.morphology import reconstruction
@@ -240,7 +289,13 @@ class PfProc(ProcModule):
         from skimage.morphology import closing, square
         from skimage import feature
 
-        image = img_as_float(self.data.T)
+        n, bins = np.histogram(
+            self.data.ravel(),
+            bins=int(self.data.max() - self.data.min()),
+        )
+        bk_int = bins[np.argmax(n)]
+
+        image = img_as_float(self.data)
         ver_min = int(self.attr['phi_min'])
         ver_max = self.attr['phi_max']
         hor_min = self.attr['khi_min']
@@ -255,6 +310,7 @@ class PfProc(ProcModule):
         dilated = reconstruction(seed, mask, method='dilation')
         # Use local threshold to identify all the close area.
         thresh = threshold_niblack(dilated, window_size=27, k=0.05)
+        # Select large closed area.
         bw = closing(image > thresh, square(3))
         # Remove area connected to bord.
         cleared = clear_border(bw)
@@ -265,13 +321,16 @@ class PfProc(ProcModule):
         binary_img = np.zeros(shape=(l, w))
         int_vsot_bg_m = []
         ind_l = []
-        for i in regionprops(label_image, self.data.T):
+        for i in regionprops(label_image, self.data):
             if i.area >= 100:
                 for k in i.coords:
                     binary_img[k[0], k[1] + ver_min] = 1
-                int_vsot_bg_m.append(np.sum(i.intensity_image))
+                int_vsot_bg_m.append(
+                    np.sum(i.intensity_image) - i.area * bk_int)
                 ind_l.append(i.weighted_centroid)
+        int_vsot_bg_m = np.asarray(int_vsot_bg_m)
 
+        # Draw edge of peaks.
         edges2 = feature.canny(binary_img, sigma=2)  # Find the edge.
         edge = np.full([l, w], np.nan)  # Create new image and fill with nan.
         edge[np.where(edges2 > 1e-2)] = 1  # Set edge to 1.
@@ -288,10 +347,11 @@ class PfProc(ProcModule):
             self.canvas.draw()
         return int_vsot_bg_m, ind_l
 
-    def _sq_pk_int(self, repaint=True, **kwargs):
+    def _sq_pk_integrate(self, repaint=True, **kwargs):
         """
-        Count Peak with square method.
+        Integrate Peak intensity with square method.
         :param
+        repaint: if re-draw the canvas.
         param(optional):
             :outer_index_list: The middle position of square. Used for set up
              Square manually.
@@ -303,10 +363,9 @@ class PfProc(ProcModule):
         sq_ins_l: The square plot handle.
         """
         int_data = self.data
-        scan_dict = self.attr
         ver_min = self.attr['phi_min']
         hor_min = self.attr['khi_min']
-        sq_sz_l = [int(scan_dict['Square Sx']), int(scan_dict['Square Sy'])]
+        sq_sz_l = [int(self.param['Square Sx']), int(self.param['Square Sy'])]
 
         if 'outer_index_list' in kwargs:
             ind_l = kwargs['outer_index_list']
@@ -428,9 +487,6 @@ class PfProc(ProcModule):
     def _int2fraction(self):
         """
         Change the peak intensity to volume fraction.
-        :param int_vsot_bg_m: Peak intensity matrix without background.
-        :param ind_l: The index list of peak positions.
-        :return: THe volume fraction list of each peak.
         """
         if (not hasattr(self, 'res')) or len(self.res) < 2:
             return
@@ -438,33 +494,33 @@ class PfProc(ProcModule):
         ind_l = self.res[1]
 
         if not hasattr(self, 'q_dialog'):
-            self.q_dialog = self._demand_param_fraction()
+            self.q_dialog = self._fraction_calculation_param_dialog()
         self.q_dialog.exec_()
 
-        thickness = int(self.param['Thickness of sample'])
+        th = int(self.param['Thickness of sample'])
         bm_int = int(self.param['Beam Int'])
+        v = abs(float(self.attr['vit_ang']))
+        omega = [
+            (
+                np.pi / 2 - np.cos(np.deg2rad(chi[1])) * np.sin(
+                    np.deg2rad(14.22)))
+            for chi in ind_l]
+        i_theo_l = [
+            self.i_theory(bm_int, v, i, i, th, 1) for i in omega]
 
-        eta = [self._correction(x[0], thickness) for x in ind_l]
+        volume_fraction_matrix = int_vsot_bg_m / i_theo_l * 100
 
-        logging.debug("Intensity _correction index eta is {0}".format(eta))
-
-        coefficient_list = np.asarray([
-            0.939691064,
-            0.666790711 / (eta[1] / eta[0]),
-            0.426843274 / (eta[2] / eta[0]),
-            0.72278158 / (eta[3] / eta[0])
-        ])
-        volume_fraction_matrix = (
-            int_vsot_bg_m * 10000 * coefficient_list / bm_int
+        self._show_res_wd = self._res_dialog(
+            int_vsot_bg_m,
+            volume_fraction_matrix
         )
-
-        self._show_result(int_vsot_bg_m, volume_fraction_matrix)
+        self._show_res_wd.show()
 
         logging.debug("Beam Intensity is {0}".format(bm_int))
-        logging.debug("Sample thickness is {0}\n".format(thickness))
+        logging.debug("Sample th is {0}\n".format(th))
         logging.debug("Peak intensity is {0}".format(volume_fraction_matrix))
 
-    def _demand_param_fraction(self):
+    def _fraction_calculation_param_dialog(self):
         q_dialog = QtWidgets.QDialog()
 
         q_t_wd = QtWidgets.QWidget()
@@ -488,57 +544,7 @@ class PfProc(ProcModule):
 
         return q_dialog
 
-    @staticmethod
-    def _bragg_angle_cal(m, xtal_hkl):
-        """
-        Calculation the bragg angle based on the material and crystal miller
-        index.
-        :param m: Material Name
-        :param xtal_hkl: Miller index
-        :return: theoretical bragg angle.
-        """
-        # import XrdAnalysis.Materials as Matl
-        # m_dict = {
-        #     'gap': Matl.GaP,
-        #     'si': Matl.Si,
-        #     'gan': Matl.GaN
-        # }
-
-        x_ray_wv_len = 0.154056  # Cu K-alpha 1 wave length of x-ray.
-
-        rms = lambda x: np.sqrt(np.mean(np.asarray(x) ** 2))
-        bragg_angle = np.arcsin(
-            x_ray_wv_len / (2 * 5.4505 / rms(xtal_hkl))
-        )
-
-        return bragg_angle
-
-    @classmethod
-    def _correction(cls, chi, thickness):
-        xtal_hkl = [1, 1, 1]  # the crystal direction of scan.
-        theta = cls._bragg_angle_cal('GaP', xtal_hkl)
-        omega = theta
-        thickness /= 1000.
-        e_angle = np.pi / 2 - np.arccos(
-            np.cos(np.deg2rad(chi)) * np.sin(theta))
-        i_angle = np.pi / 2 - np.arccos(
-            np.cos(np.deg2rad(chi)) * np.sin(omega))
-
-        eta = 1. / 37.6152  # 1/um at 8.05keV (CXRO)
-        p = np.sin(2 * e_angle - i_angle)
-        q = np.sin(i_angle)
-        coefficient_b = p / (p + q)
-        coefficient_c = 1. - np.exp(-eta * thickness * (1. / p + 1. / q))
-        coefficient = coefficient_b * (1. / eta) * coefficient_c
-
-        logging.debug(
-            "eta:{0}, thickness:{1}, p:{2}, q:{3}, c_c:{4}".format(
-                eta, thickness, p, q, coefficient_c
-            )
-        )
-        return coefficient
-
-    def _show_result(self, int_vsot_bg_m, volume_fraction_matrix):
+    def _res_dialog(self, int_vsot_bg_m, volume_fraction_matrix):
         q_table = QtWidgets.QTableWidget()
         q_table.resize(700, 200)
         q_table.setColumnCount(5)
@@ -578,8 +584,8 @@ class PfProc(ProcModule):
         _show_res_wd_layout.addWidget(q_table)
         _show_res_wd_layout.addLayout(_show_res_wd_sub_layout)
         # Main widget
-        self._show_res_wd = QtWidgets.QWidget()
-        self._show_res_wd.setLayout(_show_res_wd_layout)
+        _show_res_wd = QtWidgets.QWidget()
+        _show_res_wd.setLayout(_show_res_wd_layout)
         # Resize
         w = 140
         for i in range(q_table.columnCount()):
@@ -587,9 +593,9 @@ class PfProc(ProcModule):
         h = 76
         for i in range(q_table.rowCount()):
             h += q_table.rowHeight(i)
-        self._show_res_wd.resize(w, h)
-        # Show Main widget
-        self._show_res_wd.show()
+        _show_res_wd.resize(w, h)
+
+        return _show_res_wd
 
     @staticmethod
     def _save2csv(int_list, fraction_list):

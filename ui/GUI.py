@@ -77,10 +77,13 @@ class Ui_MainWindow(object):
         self.action_Plot.setObjectName("action_Plot")
         self.actionInsert_Recipe = QtWidgets.QAction(MainWindow)
         self.actionInsert_Recipe.setObjectName("actionInsert_Recipe")
+        self.actionAdd_Group = QtWidgets.QAction(MainWindow)
+        self.actionAdd_Group.setObjectName("actionAdd_Group")
         self.menuFile.addAction(self.actionOpen_2)
         self.menuFile.addSeparator()
         self.menuEdit.addAction(self.actionParameters)
         self.menuLibrary.addAction(self.actionImport_Data)
+        self.menuLibrary.addAction(self.actionAdd_Group)
         self.menuLibrary.addAction(self.actionCut)
         self.menuLibrary.addAction(self.actionCopy)
         self.menuLibrary.addAction(self.actionDelete_Data)
@@ -140,7 +143,11 @@ class Ui_MainWindow(object):
         self.action_Detail.setShortcut(_translate("MainWindow", "Alt+D"))
         self.action_Plot.setText(_translate("MainWindow", "&Plot"))
         self.action_Plot.setShortcut(_translate("MainWindow", "Alt+P"))
-        self.actionInsert_Recipe.setText(_translate("MainWindow", "Insert Recipe"))
+        self.actionInsert_Recipe.setText(_translate("MainWindow", "Recipe"))
+        self.actionInsert_Recipe.setToolTip(_translate("MainWindow", "Recipe"))
+        self.actionInsert_Recipe.setShortcut(_translate("MainWindow", "Ctrl+Alt+Shift+R"))
+        self.actionAdd_Group.setText(_translate("MainWindow", "Add Group"))
+        self.actionAdd_Group.setShortcut(_translate("MainWindow", "Ctrl+Alt+Shift+A"))
 
 
 if __name__ == "__main__":

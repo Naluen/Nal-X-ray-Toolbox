@@ -15,8 +15,8 @@ MODULE:
     name: TwoDAFMProc
 PREFERENCE:
   GENERAL:
-    db_lib_path: /Users/zhouang/Documents/Git/foton_report_genarator/lib/mat.h5
-    db_path: /Users/zhouang/Dropbox/Experimental_Data/xrd_lib.h5
+    db_lib_path: C:\Users\hang\Documents\GitHub\foton_report_genarator\lib\mat.h5
+    db_path: C:/Users/hang/Dropbox/Experimental_Data/xrd_lib.h5
 TYPE_DICT:
   .flt: FltFile
   .h5: H5File
