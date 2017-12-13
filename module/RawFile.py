@@ -50,7 +50,8 @@ class RawFile(FileModule):
         return data
 
     def file2narray(self):
-        logging.debug("Transform data to ndarray...")
+        logging.debug("Transform .raw file data to ndarray...")
+
         with open(self.file, 'rb') as fp:
             ds = DatasetDiffractPlusV3(fp)
         data_string = ds.pretty_format(print_header=True)
@@ -61,6 +62,7 @@ class RawFile(FileModule):
 
         attr = {i.split('=')[0].strip(): i.split('=')[1].strip()
                 for i in data_list[0] if i.startswith("_")}
+        logging.debug("Raw file attr is: {0}".format(attr))
 
         if attr['_TYPE'] == 'TwoDPlot':
             if (
@@ -97,6 +99,11 @@ class RawFile(FileModule):
                     self.two_d_data(data_list, 0),
                     self.two_d_data(data_list, 1)))
                 attr['Type'] = "SingleScan"
+            elif attr['_SCAN_TYPE'] == 'rocking curve':
+                data = np.vstack((
+                    self.two_d_data(data_list, 0),
+                    self.two_d_data(data_list, 1)))
+                attr['Type'] = "RockingCurve"
 
         return data, attr
 

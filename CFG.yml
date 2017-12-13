@@ -5,6 +5,8 @@ MODULE:
     name: H5File
   PfProc:
     name: PfProc
+  RCurveProc:
+    name: RCurveProc
   RSMProc:
     name: RSMProc
   RawFile:
@@ -23,5 +25,6 @@ TYPE_DICT:
   .raw: RawFile
   PolesFigure: PfProc
   RSM: RSMProc
+  RockingCurve: RCurveProc
   SingleScan: SinScaProc
   raw_afm: TwoDAFMProc

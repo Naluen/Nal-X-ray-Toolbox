@@ -224,13 +224,15 @@ class ProgramInterface(QtWidgets.QMainWindow):
         There will be a dialog to demand group
         :return:
         """
-        raw_file_name = QtWidgets.QFileDialog.getOpenFileName(
+        raw_file_names = QtWidgets.QFileDialog.getOpenFileNames(
             self, 'Open file',
             "/")
-        raw_file_name = str(raw_file_name[0])
-        if not raw_file_name:
+        raw_file_names = raw_file_names[0]
+        if not raw_file_names:
             return
-        self._save_data(raw_file_name)
+        for i in raw_file_names:
+            self._save_data(str(i))
+        self.lib.fh.flush()
 
     @block_tree_signal
     def add_grp(self):
@@ -567,7 +569,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         reader = getattr(getattr(_tmp, reader_name), reader_name)()
         reader.get_file(file)
 
-        logging.debug("Successfully read file...")
+        logging.debug("Successfully read file {0}...".format(file))
         return reader
 
     def _get_data_processor(self, item):
@@ -663,7 +665,6 @@ class SubMenu(QtWidgets.QMenu):
 
         self.parent = parent
 
-        # self.plot_action = QtWidgets.QAction(self)
         self.addAction(parent.ui.actionRename)
         self.addAction(parent.ui.actionCut)
         self.addAction(parent.ui.actionCopy)

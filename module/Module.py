@@ -1,11 +1,11 @@
 import abc
 import logging
+from functools import partial
 
 import numpy
+import numpy as np
 from PyQt5 import QtCore, QtWidgets
 from matplotlib import pyplot as plt
-
-from functools import partial
 
 
 class Module(QtCore.QObject):
@@ -177,3 +177,35 @@ class ProcModule(Module):
     def closeEvent(self, event):
         self.attr.update(self.param)
         self.send_param.emit(dict(self.attr))
+
+
+class OneDProcModule(ProcModule):
+    refresh_canvas = QtCore.pyqtSignal(bool)
+
+    @property
+    def name(self):
+        return __name__.split('.')[-1]
+
+    @property
+    @abc.abstractmethod
+    def supp_type(self):
+        # Supportive file type.
+        # Accept str and any other type could be changed into list.
+        pass
+
+    def _binning_data(self, bin_width=5):
+        from scipy.stats import binned_statistic
+
+        y, _, _ = binned_statistic(
+            self.data[0, :],
+            self.data[1, :],
+            statistic='median',
+            bins=int(np.floor(len(self.data[1, :])/bin_width))
+        )
+        x = self.data[0, :][::bin_width]
+        f = lambda a, b: (
+                             len(a) > len(b) and (a[:len(b)], b)
+                         ) or (a, b[:len(a)])
+        (x, y) = f(x, y)
+        self.data = np.vstack((x, y))
+        self.refresh_canvas.emit(True)
