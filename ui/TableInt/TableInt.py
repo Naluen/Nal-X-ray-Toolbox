@@ -4,6 +4,8 @@ from PyQt5 import QtWidgets, QtCore
 
 from ui.TableInt.table import Ui_Form
 from ui.ConfirmInt.ConfirmInterface import ConfirmInterface
+import numpy as np
+from distutils import util
 
 
 class TableInt(QtWidgets.QWidget):
@@ -16,27 +18,31 @@ class TableInt(QtWidgets.QWidget):
 
         self.is_item_changed = False
 
-    def data2table(self, data):
-        if isinstance(data, dict):
+    def dict2table(self, dct):
+        if isinstance(dct, dict):
             self.ui.tableWidget.setColumnCount(2)
-            self.ui.tableWidget.setRowCount(len(data))
+            self.ui.tableWidget.setRowCount(len(dct))
             self.ui.tableWidget.setHorizontalHeaderLabels(["Key", "Value"])
             self.ui.tableWidget.verticalHeader().hide()
-            sorted_keys = sorted(data.keys(), key=lambda x: x[0])
+            sorted_keys = sorted(dct.keys(), key=lambda x: x[0])
             i = 0
             for key in sorted_keys:
                 key_item = QtWidgets.QTableWidgetItem(str(key))
                 key_item.setFlags(key_item.flags() & ~QtCore.Qt.ItemIsEditable)
                 self.ui.tableWidget.setItem(i, 0, key_item)
                 self.ui.tableWidget.setItem(
-                    i, 1, QtWidgets.QTableWidgetItem(str(data[key]))
+                    i, 1, QtWidgets.QTableWidgetItem(str(dct[key]))
                 )
+                if isinstance(dct[key], np.ndarray):
+                    self.ui.tableWidget.item(i, 1).setFlags(
+                        key_item.flags() & ~QtCore.Qt.ItemIsEditable)
                 i += 1
 
             self.ui.tableWidget.resizeColumnsToContents()
             self.ui.tableWidget.resizeRowsToContents()
 
             self.ui.tableWidget.itemChanged.connect(self.item_changed)
+            self.dct = dct
         else:
             raise TypeError
 
@@ -49,6 +55,14 @@ class TableInt(QtWidgets.QWidget):
                 self.ui.tableWidget.item(i, 1).text()
             for i in range(self.ui.tableWidget.rowCount())
         }
+        for i in scan_d:
+            if i in self.dct:
+                if isinstance(self.dct[i], (bool, np.bool_)):
+                    scan_d[i] = util.strtobool(scan_d[i])
+                elif isinstance(self.dct[i], (np.int_, int)):
+                    scan_d[i] = np.int(scan_d[i])
+                elif isinstance(self.dct[i], (np.float_, float)):
+                    scan_d[i] = np.float(scan_d[i])
         return scan_d
 
     def closeEvent(self, event):

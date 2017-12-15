@@ -28,15 +28,18 @@ class RawFile(FileModule):
 
     @staticmethod
     def two_d_data(data_list, index):
-        data = np.asanyarray(
-            [
-                [float(j.split('\t')[index]) for j in
-                 value
-                 if (re.match('\d', j) or j.startswith("-"))]
-                for value in data_list[1:]
-            ]
-        )
-        return data
+        data = [
+            [float(j.split('\t')[index]) for j in
+             value
+             if (re.match('\d', j) or j.startswith("-"))]
+            for value in data_list[1:]
+        ]
+        i_1 = data[0]
+        for i in range(len(data)):
+            if len(data[i]) < len(i_1):
+                data[i] = i_1
+
+        return np.asanyarray(data)
 
     @staticmethod
     def one_d_data(data_list, key_word):
@@ -66,26 +69,25 @@ class RawFile(FileModule):
 
         if attr['_TYPE'] == 'TwoDPlot':
             if (
-                        (attr['_STEPPING_DRIVE1'] == 'KHI') and
-                        (attr['_STEPPING_DRIVE2'] == 'PHI')):
+                    (attr['_STEPPING_DRIVE1'] == 'KHI') and
+                    (attr['_STEPPING_DRIVE2'] == 'PHI')):
                 khi_data = self.one_d_data(data_list, '_KHI')
-                attr['khi_min'] = khi_data[0]
-                attr['khi_max'] = khi_data[-1]
+                attr['khi_min'] = np.int16(khi_data[0][0])
+                attr['khi_max'] = np.int16(khi_data[-1][0])
                 phi_data = self.two_d_data(data_list, 0)
-                attr['phi_min'] = phi_data[0, :][0]
-                attr['phi_max'] = phi_data[0, :][-1]
+                attr['phi_min'] = np.int16(phi_data[0, :][0])
+                attr['phi_max'] = np.int16(phi_data[0, :][-1])
 
-                data = (self.two_d_data(data_list, 1) /
-                        self.one_d_data(data_list, '_STEPTIME'))
+                data = self.two_d_data(data_list, 1)
                 attr['vit_ang'] = (
-                    (phi_data[0, 1] - phi_data[0, 0]) /
-                    self.one_d_data(data_list, '_STEPTIME')[0][0])
+                        np.deg2rad(phi_data[0, 1] - phi_data[0, 0]) /
+                        self.one_d_data(data_list, '_STEPTIME')[0][0])
                 attr['Type'] = "PolesFigure"
 
         elif attr['_TYPE'] == 'RSMPlot':
             if (
-                        (attr['_STEPPING_DRIVE1'] == 'OMEGA') and
-                        (attr['_STEPPING_DRIVE2'] == 'TWOTHETA')):
+                    (attr['_STEPPING_DRIVE1'] == 'OMEGA') and
+                    (attr['_STEPPING_DRIVE2'] == 'TWOTHETA')):
                 attr['Type'] = "RSM"
                 attr['phi_data'] = self.one_d_data(data_list, '_PHI')
                 attr['omega_data'] = self.one_d_data(data_list, '_OMEGA')
@@ -94,15 +96,17 @@ class RawFile(FileModule):
                 data = self.two_d_data(data_list, 1)
 
         elif attr['_TYPE'] == 'SingleScanPlot':
-            if attr['_SCAN_TYPE'] == 'detector scan':
-                data = np.vstack((
+            data = np.vstack(
+                (
                     self.two_d_data(data_list, 0),
-                    self.two_d_data(data_list, 1)))
+                    self.two_d_data(data_list, 1)
+                )
+            )
+            attr['_STEP_SIZE'] = self.one_d_data(data_list, '_STEP_SIZE')
+            attr['_STEPTIME'] = self.one_d_data(data_list, '_STEPTIME')
+            if attr['_SCAN_TYPE'] == 'detector scan':
                 attr['Type'] = "SingleScan"
             elif attr['_SCAN_TYPE'] == 'rocking curve':
-                data = np.vstack((
-                    self.two_d_data(data_list, 0),
-                    self.two_d_data(data_list, 1)))
                 attr['Type'] = "RockingCurve"
 
         return data, attr

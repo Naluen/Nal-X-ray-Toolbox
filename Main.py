@@ -393,6 +393,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
             self._error.showMessage("Must set type for the data.")
             return
         name = os.path.basename(raw_file_name).split('.')[0]
+        attr['title'] = h5_path + '/' + name
         is_data = self.lib.is_data_set(h5_path)
         try:
             self.lib.set_data(
@@ -452,7 +453,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.attrInt.setWindowTitle("Attributes")
 
         try:
-            self.attrInt.data2table(attr)
+            self.attrInt.dict2table(attr)
         except TypeError as e:
             logging.error(str(e))
             logging.error(type(attr))

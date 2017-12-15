@@ -1,3 +1,5 @@
+import logging
+
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -42,6 +44,7 @@ class RCurveProc(OneDProcModule):
     def __init__(self):
         super(RCurveProc, self).__init__()
         self.param = {}
+        self._peak_side_point = []
         self._build_plot_widget()
 
     @property
@@ -90,7 +93,7 @@ class RCurveProc(OneDProcModule):
         self._toolbar.addAction(
             QtGui.QIcon(QtGui.QPixmap('icons/curve.png')),
             "Voigt Profile...",
-            self._voigt_fit,
+            self._fit,
         )
 
         self.plot_widget = QtWidgets.QWidget()
@@ -117,22 +120,25 @@ class RCurveProc(OneDProcModule):
         plt.ylabel("{0}".format("Intensity"))
         self.canvas.draw()
 
-    def _voigt_fit(self):
+    def _fit(self):
         x = self.data[0, :]
         y = self.data[1, :]
 
         popt, pcov = curve_fit(pseudo_voigt_func, x, y)
-        # f_g = 2 * alpha
-        # f_l = 2 * gamma
-        # phi = f_l / f_g
-        # f_v = f_g * (1 - 2.0056 * 1.0593 + np.sqrt(
-        #     phi ** 2 + 2 * 1.0593 * phi + 2.0056 ** 2 * 1.0593 ** 2))
         plt.figure(self.figure.number)
+        fun_max = pseudo_voigt_func(0, *popt)
+        p = np.abs(pseudo_voigt_func(x, *popt) - fun_max / 2).argsort()[:2]
+        fwhm = np.abs(self.data[0, :][p[0]] - self.data[0, :][p[1]])
+        step_time = self.attr['_STEPTIME'][0][0]
+        step_size = self.attr['_STEP_SIZE'][0][0]
+        intensity = fwhm * fun_max * step_time / step_size
+        (alpha, gamma, mu) = popt
         plt.plot(
             x,
             pseudo_voigt_func(x, *popt),
             'r-',
-            # label='fit: alpha=%5.3f, fwhm=%5.3f' % (alpha, 2*alpha),
+            label='fit: \n alpha=%5.3f,\n FWHM=%5.3f,\n maxmium =\
+            %5.3f,\n intensity = %5.3f' % (alpha, fwhm, fun_max, intensity),
         )
         plt.legend()
         self.canvas.draw()
@@ -143,13 +149,57 @@ class RCurveProc(OneDProcModule):
             b, a, self.data[1, :], method="gust")
         self.refresh_canvas.emit(True)
 
-    def _rm_bk(self):
-        # self.data[1, :] = self.data[1, :] - self.data[1, :].min()
-        self.data[0, :] = self.data[0, :] - self.data[0, :][
-            np.argmax(self.data[1, :])]
-        self.data[1, :] = signal.detrend(self.data[1, :], bp=[0, 400, 600])
-        self.data[1, :][400:600] = self.data[1, :][400:600] - self.data[1, :][400]
-        self.refresh_canvas.emit(True)
+    def _rm_bk(self, mode='auto'):
+
+        if mode == 'auto':
+            rg = 5
+            l_p = self.data[0, :][rg]
+            r_p = self.data[0, :][-rg]
+
+            def l_func(x_i, l_p_i, r_p_i):
+                y_l = self.data[1, :][rg]
+                y_r = self.data[1, :][-rg]
+                return (y_r - y_l) / (r_p_i - l_p_i) * (x_i - l_p_i) + y_l
+
+            diff = np.asarray([l_func(x, l_p, r_p) for x in self.data[0, :]])
+
+            self.data[1, :] -= diff
+            self.data[1, :] -= self.data[1, :].min()
+            self.data[0, :] -= self.data[0, :][np.argmax(self.data[1, :])]
+            self.refresh_canvas.emit(True)
+        elif mode == 'manual':
+            self.cid_press = self.canvas.mpl_connect(
+                'button_press_event', self._on_press
+            )
+
+    def _on_press(self, event):
+        x = event.xdata
+        self.figure.gca().plot(
+            x, self.data[1, :][np.abs(self.data[0, :] - x).argmin()], "*"
+        )
+        self._peak_side_point.append(x)
+        self.canvas.draw()
+        if len(self._peak_side_point) == 2:
+            l_p = self._peak_side_point[0]
+            r_p = self._peak_side_point[1]
+            if r_p < l_p:
+                l_p, r_p = r_p, l_p
+            logging.debug("Selected peak from {0} to {1}".format(l_p, r_p))
+
+            def l_func(x_i, l_p_i, r_p_i):
+                y_l = self.data[1, :][np.abs(self.data[0, :] - l_p_i).argmin()]
+                y_r = self.data[1, :][np.abs(self.data[0, :] - r_p_i).argmin()]
+                return (y_r - y_l) / (r_p_i - l_p_i) * (x_i - l_p_i) + y_l
+
+            diff = np.asarray([l_func(x, l_p, r_p) for x in self.data[0, :]])
+
+            self.data[1, :] -= diff
+            self.data[1, :] -= self.data[1, :].min()
+            self.data[0, :] -= self.data[0, :][np.argmax(self.data[1, :])]
+            self.refresh_canvas.emit(True)
+
+            self.canvas.mpl_disconnect(self.cid_press)
+            self._peak_side_point = []
 
     # Config Menu.
     def _configuration(self):

@@ -47,7 +47,7 @@ class PfProc(ProcModule):
             ('Square Sx', 16),
             ('Square Sy', 16),
             ('Phi offset', 0),
-            ('Beam Int', 0),
+            ('Beam Int', 1),
         ])
 
         self.q_line_wd = QtWidgets.QWidget()
@@ -87,11 +87,16 @@ class PfProc(ProcModule):
             np.sin(2 * theta - omega) /
             (np.sin(2 * theta - omega) + np.sin(omega))
         )
-        c_1 = (1 - np.exp(
-            0 - U * th * (1 / np.sin(omega) + 1 / np.sin(2 * theta - omega))))
+        c_1 = (
+                1 - np.exp(
+                    0 - U * th/1E10 * (
+                            1 / np.sin(omega) + 1 / np.sin(2 * theta - omega)
+                    )
+                )
+        )
         c_2 = RO2 * LAMBDA ** 3 * F_GAP * P * L / V_A ** 2
 
-        i_theo = i_0 * c_0 * c_1 * c_2 * index / (v * th)
+        i_theo = i_0 * c_0 * c_1 * c_2 * index / (v * U)
 
         return i_theo
 
@@ -130,14 +135,14 @@ class PfProc(ProcModule):
             else 10
         )
         v_min = (
-            int(self.attr['v_min'])
+            np.int64(self.attr['v_min'])
             if ('v_min' in self.attr and self.attr['v_min'])
             else 10000
         )
-        ver_min = self.attr['phi_min']
-        ver_max = self.attr['phi_max']
-        hor_min = self.attr['khi_min']
-        hor_max = self.attr['khi_max']
+        ver_min = np.int64(self.attr['phi_min'])
+        ver_max = np.int64(self.attr['phi_max'])
+        hor_min = np.int64(self.attr['khi_min'])
+        hor_max = np.int64(self.attr['khi_max'])
         plt.figure(self.figure.number)
         ax2d = plt.gca()
         im = ax2d.imshow(
@@ -158,6 +163,8 @@ class PfProc(ProcModule):
         )
 
         self.canvas.draw()
+
+        self.plot_widget.setWindowTitle(self.attr['title'])
 
     def closeEvent(self, event):
         self.attr.update(self.param)
@@ -296,10 +303,10 @@ class PfProc(ProcModule):
         bk_int = bins[np.argmax(n)]
 
         image = img_as_float(self.data)
-        ver_min = int(self.attr['phi_min'])
-        ver_max = self.attr['phi_max']
-        hor_min = self.attr['khi_min']
-        hor_max = self.attr['khi_max']
+        ver_min = np.int64(self.attr['phi_min'])
+        ver_max = np.int64(self.attr['phi_max'])
+        hor_min = np.int64(self.attr['khi_min'])
+        hor_max = np.int64(self.attr['khi_max'])
 
         image = gaussian_filter(image, 1, mode='nearest')
 
@@ -363,8 +370,8 @@ class PfProc(ProcModule):
         sq_ins_l: The square plot handle.
         """
         int_data = self.data
-        ver_min = self.attr['phi_min']
-        hor_min = self.attr['khi_min']
+        ver_min = np.int64(self.attr['phi_min'])
+        hor_min = np.int64(self.attr['khi_min'])
         sq_sz_l = [int(self.param['Square Sx']), int(self.param['Square Sy'])]
 
         if 'outer_index_list' in kwargs:
@@ -448,8 +455,8 @@ class PfProc(ProcModule):
             return sorted_index_list
 
         int_data_m = self.data
-        ver_min = self.attr['phi_min']
-        hor_min = self.attr['khi_min']
+        ver_min = np.int64(self.attr['phi_min'])
+        hor_min = np.int64(self.attr['khi_min'])
 
         neighborhood = generate_binary_structure(2, 2)
         for i in range(3):
@@ -501,9 +508,7 @@ class PfProc(ProcModule):
         bm_int = int(self.param['Beam Int'])
         v = abs(float(self.attr['vit_ang']))
         omega = [
-            (
-                np.pi / 2 - np.cos(np.deg2rad(chi[1])) * np.sin(
-                    np.deg2rad(14.22)))
+            (np.pi / 2 - np.arccos(np.cos(np.deg2rad(chi[1])) * np.sin(np.deg2rad(14.22))))
             for chi in ind_l]
         i_theo_l = [
             self.i_theory(bm_int, v, i, i, th, 1) for i in omega]
@@ -622,7 +627,7 @@ class PfProc(ProcModule):
 
         return file_name,
 
-    # Extenal methods.
+    # External methods.
     def plot(self):
         """Plot Image."""
         self._repaint("")
