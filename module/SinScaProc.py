@@ -4,10 +4,10 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 
-from module.Module import ProcModule
+from module.Module import OneDProcModule
 
 
-class SinScaProc(ProcModule):
+class SinScaProc(OneDProcModule):
     refresh_canvas = QtCore.pyqtSignal(bool)
 
     def __init__(self):
@@ -28,6 +28,8 @@ class SinScaProc(ProcModule):
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+
+        plt.figure(self.figure.number)
 
         self._toolbar = QtWidgets.QToolBar()
         self._toolbar.setMinimumHeight(30)
@@ -77,10 +79,17 @@ class SinScaProc(ProcModule):
         self.refresh_canvas.emit(True)
         event.accept()
 
-    # Externel methods.
-    def get_max(self):
-        # TODO(azhou@insa-rennes.fr): Use local max instead of max.
-        return np.max(self.data[1, :])
+    # External methods.
+    def get_max(self, mode='simple'):
+        if mode=='simple':
+            return np.max(self.data[1, :])
+        else:
+            self._target(is_plot=False)
+            self._fit(fit_fun=self.fun_dict['pseudo_voigt'], is_plot=False)
+            step_time = self.attr['_STEPTIME']
+            step_size = self.attr['_STEP_SIZE']
+            intensity = self._res[0] * self._res[1] * step_time / step_size
+            return intensity
 
     def plot(self):
         """Plot Image."""

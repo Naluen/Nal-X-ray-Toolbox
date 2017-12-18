@@ -1,5 +1,3 @@
-import logging
-from collections import OrderedDict
 from functools import partial
 
 import matplotlib.pyplot as plt
@@ -7,99 +5,10 @@ import numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
-from scipy import signal
-from scipy.optimize import curve_fit
-from scipy.special import wofz
 
 from module.Module import OneDProcModule
 from module.RawFile import RawFile
-
-HKL_DICT = OrderedDict({
-    '002': [0, 0, 2],
-    '004': [0, 0, 4],
-    '006': [0, 0, 6],
-    '-2-24': [-2, -2, 4],
-})
-LAMBDA = 0.154055911278
-
-
-def _bragg_angle_cal(lattice, xtal_hkl):
-    """
-    Calculation the bragg angle based on the crystal miller
-    index.
-    >>> hkl_l = [(0, 0, 2), (0, 0, 4), (0, 0, 6), (2, 2, -4)]
-    >>> hkl_d = {i: _bragg_angle_cal(0.54505, i) for i in hkl_l}
-    >>> assert abs(hkl_d[(0, 0, 2)]-32.8) < 0.1
-    """
-
-    rms = lambda x: np.sqrt(np.sum(np.asarray(x) ** 2))
-    bragg_angle = np.arcsin(
-        LAMBDA / (2 * lattice / rms(xtal_hkl))
-    )
-
-    return np.rad2deg(bragg_angle) * 2
-
-
-def i_theory(i_0, v, theta, omega, th, index):
-    RO2 = 7.94E-30
-    LAMBDA = 1.5418E-10
-    F_GAP = 3249.001406
-    L = 1.846012265
-    P = 0.853276107
-    V_A = 5.4506E-10 ** 3
-    U = 1000000 / 37.6416
-    c_0 = (
-            np.sin(2 * theta - omega) /
-            (np.sin(2 * theta - omega) + np.sin(omega))
-    )
-    c_1 = (
-            1 - np.exp(
-        0 - U * th / 1E10 * (
-                1 / np.sin(omega) + 1 / np.sin(2 * theta - omega)
-        )
-    )
-    )
-    c_2 = RO2 * LAMBDA ** 3 * F_GAP * P * L / V_A ** 2
-
-    i_theo = i_0 * c_0 * c_1 * c_2 * index / (v * U)
-
-    return i_theo
-
-
-def gaussian_func(x, alpha):
-    """ Return Gaussian line shape at x with HWHM alpha """
-    return np.sqrt(np.log(2) / np.pi) / alpha * np.exp(
-        -(x / alpha) ** 2 * np.log(2))
-
-
-def lorentzian_func(x, gamma):
-    """ Return Lorentzian line shape at x with HWHM gamma """
-    return gamma / np.pi / (x ** 2 + gamma ** 2)
-
-
-def voigt_func(x, alpha, gamma):
-    """
-    Return the Voigt line shape at x with Lorentzian component HWHM
-    gamma and Gaussian component HWHM alpha.
-    """
-    sigma = alpha / np.sqrt(2 * np.log(2))
-    wofz_v = np.real(
-        wofz(((x - 14.22) + 1j * gamma) / sigma / np.sqrt(2)))
-
-    return wofz_v / sigma / np.sqrt(2 * np.pi)
-
-
-def pseudo_voigt_func(x, alpha, gamma, mu):
-    return mu * gaussian_func(x, alpha) + (
-            1 - mu) * lorentzian_func(x, gamma)
-
-
-FUN_DICT = {
-    'pseudo_voigt': pseudo_voigt_func,
-    'voigt': voigt_func,
-    'lorentz': lorentzian_func,
-    'gaussian': gaussian_func,
-}
+from module.SinScaProc import SinScaProc
 
 
 class RCurveProc(OneDProcModule):
@@ -124,6 +33,32 @@ class RCurveProc(OneDProcModule):
     @property
     def supp_type(self):
         return "RockingCurve",
+
+    @staticmethod
+    def i_theory(i_0, v, theta, omega, th, index):
+        RO2 = 7.94E-30
+        LAMBDA = 1.5418E-10
+        F_GAP = 3249.001406
+        L = 1.846012265
+        P = 0.853276107
+        V_A = 5.4506E-10 ** 3
+        U = 1000000 / 37.6416
+        c_0 = (
+                np.sin(2 * theta - omega) /
+                (np.sin(2 * theta - omega) + np.sin(omega))
+        )
+        c_1 = (
+                1 - np.exp(
+            0 - U * th / 1E10 * (
+                    1 / np.sin(omega) + 1 / np.sin(2 * theta - omega)
+            )
+        )
+        )
+        c_2 = RO2 * LAMBDA ** 3 * F_GAP * P * L / V_A ** 2
+
+        i_theo = i_0 * c_0 * c_1 * c_2 * index / (v * U)
+
+        return i_theo
 
     # =======Main Canvas=======================================================
     def _build_plot_widget(self):
@@ -201,17 +136,17 @@ class RCurveProc(OneDProcModule):
             "Voigt Profile...",
         )
         pseudo_voigt_fit_action.triggered.connect(
-            lambda: self._fit(fit_fun=FUN_DICT['pseudo_voigt'])
+            lambda: self._fit(fit_fun=self.fun_dict['pseudo_voigt'])
         )
         fit_tool_button.setDefaultAction(
             pseudo_voigt_fit_action
         )
 
         fit_tool_button_menu = QtWidgets.QMenu()
-        for i in FUN_DICT:
+        for i in self.fun_dict:
             fit_tool_button_menu.addAction(
                 i,
-                lambda: self._fit(fit_fun=FUN_DICT[i])
+                lambda: self._fit(fit_fun=self.fun_dict[i])
             )
         fit_tool_button.setMenu(fit_tool_button_menu)
 
@@ -223,7 +158,6 @@ class RCurveProc(OneDProcModule):
             "Results..."
         )
         self.res_action.triggered.connect(self._result)
-        self.res_action.setEnabled(False)
         self._toolbar.addAction(self.res_action)
 
         self.plot_widget = QtWidgets.QWidget()
@@ -278,8 +212,11 @@ class RCurveProc(OneDProcModule):
         def file2int(i):
             ins = RawFile()
             ins.get_file(i)
-            data, _ = ins.file2narray()
-            inte = np.max(data[1, :]) * 8940
+            data, attr = ins.file2narray()
+            ins = SinScaProc()
+            ins.set_data(data, attr)
+            inte = ins.get_max() * 8940
+            plt.figure(self.figure.number)
             del ins
             return inte
 
@@ -302,7 +239,7 @@ class RCurveProc(OneDProcModule):
         self.hkl_wd = QtWidgets.QWidget()
         sub_hkl_layout = QtWidgets.QVBoxLayout()
         self.hkl_box = QtWidgets.QComboBox()
-        self.hkl_box.addItems(list(HKL_DICT.keys()))
+        self.hkl_box.addItems(list(self.HKL_DICT.keys()))
         self.hkl_box.setCurrentIndex(self.param['HKL'])
         self.hkl_box.currentIndexChanged.connect(
             partial(self.param.__setitem__, 'HKL')
@@ -319,88 +256,6 @@ class RCurveProc(OneDProcModule):
         self.param['HKL'] = int(msg)
 
     # =========================================================================
-
-    def _filter(self):
-        arg = signal.butter(5, 0.1)
-        self.data[1, :] = signal.filtfilt(
-            *arg, self.data[1, :], method="gust")
-        self.refresh_canvas.emit(True)
-
-    def _target(self, mode='auto'):
-
-        if mode == 'auto':
-            rg = 50
-            l_p = self.data[0, :][rg]
-            r_p = self.data[0, :][-rg]
-
-            def l_func(x_i, l_p_i, r_p_i):
-                y_l = self.data[1, :][rg]
-                y_r = self.data[1, :][-rg]
-                return (y_r - y_l) / (r_p_i - l_p_i) * (x_i - l_p_i) + y_l
-
-            diff = np.asarray([l_func(x, l_p, r_p) for x in self.data[0, :]])
-
-            self.data[1, :] -= diff
-            self.data[1, :] -= self.data[1, :].min()
-            self.data[0, :] -= self.data[0, :][np.argmax(self.data[1, :])]
-            self.refresh_canvas.emit(True)
-        elif mode == 'manual':
-            self.cid_press = self.canvas.mpl_connect(
-                'button_press_event', self._on_press
-            )
-
-    def _on_press(self, event):
-        x = event.xdata
-        self.figure.gca().plot(
-            x, self.data[1, :][np.abs(self.data[0, :] - x).argmin()], "*"
-        )
-        self._peak_side_point.append(x)
-        self.canvas.draw()
-        if len(self._peak_side_point) == 2:
-            l_p = self._peak_side_point[0]
-            r_p = self._peak_side_point[1]
-            if r_p < l_p:
-                l_p, r_p = r_p, l_p
-            logging.debug("Selected peak from {0} to {1}".format(l_p, r_p))
-
-            def l_func(x_i, l_p_i, r_p_i):
-                y_l = self.data[1, :][np.abs(self.data[0, :] - l_p_i).argmin()]
-                y_r = self.data[1, :][np.abs(self.data[0, :] - r_p_i).argmin()]
-                return (y_r - y_l) / (r_p_i - l_p_i) * (x_i - l_p_i) + y_l
-
-            diff = np.asarray([l_func(x, l_p, r_p) for x in self.data[0, :]])
-
-            self.data[1, :] -= diff
-            self.data[1, :] -= self.data[1, :].min()
-            self.data[0, :] -= self.data[0, :][np.argmax(self.data[1, :])]
-            self.refresh_canvas.emit(True)
-
-            self.canvas.mpl_disconnect(self.cid_press)
-            self._peak_side_point = []
-
-    def _fit(self, fit_fun):
-        """
-        Fit the y data with selected function and plot.
-        :return:
-        """
-        x = self.data[0, :]
-        y = self.data[1, :]
-
-        popt, pcov = curve_fit(fit_fun, x, y)
-        plt.figure(self.figure.number)
-
-        fun_max = fit_fun(0, *popt)
-        p = np.abs(fit_fun(x, *popt) - fun_max / 2).argsort()[:2]
-        fwhm = np.abs(self.data[0, :][p[0]] - self.data[0, :][p[1]])
-        self._res = (fun_max, fwhm)
-        self.res_action.setEnabled(True)
-
-        plt.plot(
-            x,
-            pseudo_voigt_func(x, *popt),
-            'r-',
-        )
-        self.canvas.draw()
 
     def _fraction_calculation_param_dialog(self):
         q_dialog = QtWidgets.QDialog()
@@ -428,21 +283,24 @@ class RCurveProc(OneDProcModule):
         return q_dialog
 
     def _result(self):
+        if not hasattr(self, '_res'):
+            return
         self._tmp_dialog = self._fraction_calculation_param_dialog()
         self._tmp_dialog.exec()
 
         step_time = self.attr['_STEPTIME']
         step_size = self.attr['_STEP_SIZE']
         intensity = self._res[0] * self._res[1] * step_time / step_size
-        theta = _bragg_angle_cal(
-            0.54505, list(HKL_DICT.values())[self.param['HKL']]) / 2
+        theta = self._bragg_angle_cal(
+            0.54505, list(self.HKL_DICT.values())[self.param['HKL']]) / 2
         th = int(self.param['Thickness of sample'])
         bm_int = int(self.param['Beam Int'])
         v = np.deg2rad(step_size) / step_time
         omega = np.deg2rad(22)
         theta = np.deg2rad(theta)
-        i_theo_l = i_theory(bm_int, v, theta, omega, th, 1)
-        res_l = [intensity, i_theo_l, intensity/i_theo_l*100, "", self._res[1],
+        i_theo_l = self.i_theory(bm_int, v, theta, omega, th, 1)
+        res_l = [intensity, i_theo_l, intensity / i_theo_l * 100, "",
+                 self._res[1],
                  self._res[0], "", bm_int, v, np.rad2deg(theta),
                  np.rad2deg(omega), th]
 
