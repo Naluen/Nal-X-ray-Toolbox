@@ -79,9 +79,9 @@ class RawFile(FileModule):
                 attr['phi_max'] = np.int16(phi_data[0, :][-1])
 
                 data = self.two_d_data(data_list, 1)
-                attr['vit_ang'] = (
-                        np.deg2rad(phi_data[0, 1] - phi_data[0, 0]) /
-                        self.one_d_data(data_list, '_STEPTIME')[0][0])
+                size = self.one_d_data(data_list, '_STEP_SIZE')[0][0]
+                tm = self.one_d_data(data_list, '_STEPTIME')[0][0]
+                attr['vit_ang'] = np.float32(size / tm)
                 attr['Type'] = "PolesFigure"
 
         elif attr['_TYPE'] == 'RSMPlot':
@@ -96,14 +96,14 @@ class RawFile(FileModule):
                 data = self.two_d_data(data_list, 1)
 
         elif attr['_TYPE'] == 'SingleScanPlot':
+            attr['_STEP_SIZE'] = self.one_d_data(data_list, '_STEP_SIZE')[0][0]
+            attr['_STEPTIME'] = self.one_d_data(data_list, '_STEPTIME')[0][0]
             data = np.vstack(
                 (
                     self.two_d_data(data_list, 0),
-                    self.two_d_data(data_list, 1)
+                    self.two_d_data(data_list, 1)/attr['_STEPTIME']
                 )
             )
-            attr['_STEP_SIZE'] = self.one_d_data(data_list, '_STEP_SIZE')
-            attr['_STEPTIME'] = self.one_d_data(data_list, '_STEPTIME')
             if attr['_SCAN_TYPE'] == 'detector scan':
                 attr['Type'] = "SingleScan"
             elif attr['_SCAN_TYPE'] == 'rocking curve':

@@ -29,16 +29,16 @@ class H5File(FileModule):
     def file2narray(self):
         pass
 
-    def set_data(self, data, path, name, attr, is_force=None):
+    def set_data(self, data, attr, *args, **kwargs):
         """
 
         :param data:
-        :param path:
-        :param name:
         :param attr:
-        :param is_force: True will overwrite existed data set.
         :return:
         """
+        path = kwargs['path']
+        name = kwargs['name']
+        is_force = kwargs['is_force'] if 'is_force' in kwargs else False
         if isinstance(data, numpy.ndarray):
             logging.debug("This is a numpy array instant.")
             if isinstance(self.fh[path], self.h5py.Dataset):

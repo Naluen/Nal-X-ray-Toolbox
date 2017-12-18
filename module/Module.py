@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 
 class Module(QtCore.QObject):
     send_param = QtCore.pyqtSignal(dict)
+    update_gui_cfg = QtCore.pyqtSignal(dict)
 
     def __init__(self):
         super(Module, self).__init__()
@@ -90,7 +91,10 @@ class Module(QtCore.QObject):
             else:
                 pass
 
-        del i
+        try:
+            del i
+        except UnboundLocalError:
+            pass
         widget.setLayout(layout)
 
         return widget
@@ -167,7 +171,7 @@ class ProcModule(Module):
                 bbox_inches='tight',
             )
 
-    def set_data(self, data, attr):
+    def set_data(self, data, attr, *arg, **kwargs):
         self.data = data[()]
         self.attr = dict(attr)
         for i in self.param:
@@ -177,6 +181,7 @@ class ProcModule(Module):
     def closeEvent(self, event):
         self.attr.update(self.param)
         self.send_param.emit(dict(self.attr))
+        event.accept()
 
 
 class OneDProcModule(ProcModule):

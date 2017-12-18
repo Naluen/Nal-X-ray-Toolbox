@@ -34,7 +34,6 @@ def _bragg_angle_cal(lattice, xtal_hkl):
 
 class PfProc(ProcModule):
     refresh_canvas = QtCore.pyqtSignal(bool)
-    set_q_int_line_v = QtCore.pyqtSignal(int)
 
     def __init__(self):
         super(PfProc, self).__init__()
@@ -50,19 +49,7 @@ class PfProc(ProcModule):
             ('Beam Int', 1),
         ])
 
-        self.q_line_wd = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(QtWidgets.QLabel("Beam Intensity"))
-        self.q_int_line = QtWidgets.QLineEdit(str(self.param['Beam Int']))
-        self.q_int_line.textChanged.connect(
-            partial(self.param.__setitem__, 'Beam Int'))
-        q_int_button = self.q_int_line.addAction(
-            QtGui.QIcon(QtGui.QPixmap('icons/more.png')),
-            QtWidgets.QLineEdit.TrailingPosition)
-        q_int_button.triggered.connect(self._get_bm_int)
-        layout.addWidget(self.q_int_line)
-        self.q_line_wd.setLayout(layout)
-        self.set_q_int_line_v.connect(self._set_q_int_line)
+        self._build_intensity_input_linedit()
 
         self._build_plot_widget()
 
@@ -84,21 +71,44 @@ class PfProc(ProcModule):
         V_A = 5.4506E-10 ** 3
         U = 1000000 / 37.6416
         c_0 = (
-            np.sin(2 * theta - omega) /
-            (np.sin(2 * theta - omega) + np.sin(omega))
+                np.sin(2 * theta - omega) /
+                (np.sin(2 * theta - omega) + np.sin(omega))
         )
         c_1 = (
                 1 - np.exp(
-                    0 - U * th/1E10 * (
-                            1 / np.sin(omega) + 1 / np.sin(2 * theta - omega)
-                    )
-                )
+            0 - U * th / 1E10 * (
+                    1 / np.sin(omega) + 1 / np.sin(2 * theta - omega)
+            )
+        )
         )
         c_2 = RO2 * LAMBDA ** 3 * F_GAP * P * L / V_A ** 2
 
         i_theo = i_0 * c_0 * c_1 * c_2 * index / (v * U)
 
         return i_theo
+
+    # ========Intensity input line edit.=======================================
+    set_q_int_line_v = QtCore.pyqtSignal(int)
+
+    def _build_intensity_input_linedit(self):
+        self.q_line_wd = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(QtWidgets.QLabel("Beam Intensity"))
+        self.q_int_line = QtWidgets.QLineEdit(str(self.param['Beam Int']))
+        self.q_int_line.textChanged.connect(
+            partial(self.param.__setitem__, 'Beam Int'))
+        q_int_button = self.q_int_line.addAction(
+            QtGui.QIcon(QtGui.QPixmap('icons/more.png')),
+            QtWidgets.QLineEdit.TrailingPosition)
+        q_int_button.triggered.connect(self._get_bm_int)
+        layout.addWidget(self.q_int_line)
+        self.q_line_wd.setLayout(layout)
+        self.set_q_int_line_v.connect(self._set_q_int_line)
+
+    @QtCore.pyqtSlot(int)
+    def _set_q_int_line(self, msg):
+        self.q_int_line.setText(str(msg))
+        self.param['Beam Int'] = int(msg)
 
     def _get_bm_int(self):
         def file2int(i):
@@ -121,57 +131,7 @@ class PfProc(ProcModule):
         beam_int = np.mean(np.asarray(int_l))
         self.set_q_int_line_v.emit(beam_int)
 
-    @QtCore.pyqtSlot(int)
-    def _set_q_int_line(self, msg):
-        self.q_int_line.setText(str(msg))
-        self.param['Beam Int'] = int(msg)
-
-    @QtCore.pyqtSlot(bool)
-    def _repaint(self, message):
-        self.figure.clf()
-        v_max = (
-            int(self.attr['v_max'])
-            if ('v_max' in self.attr and self.attr['v_max'])
-            else 10
-        )
-        v_min = (
-            np.int64(self.attr['v_min'])
-            if ('v_min' in self.attr and self.attr['v_min'])
-            else 10000
-        )
-        ver_min = np.int64(self.attr['phi_min'])
-        ver_max = np.int64(self.attr['phi_max'])
-        hor_min = np.int64(self.attr['khi_min'])
-        hor_max = np.int64(self.attr['khi_max'])
-        plt.figure(self.figure.number)
-        ax2d = plt.gca()
-        im = ax2d.imshow(
-            self.data,
-            origin="lower",
-            norm=LogNorm(vmin=v_min, vmax=v_max),
-            extent=[ver_min, ver_max, hor_min, hor_max]
-        )
-
-        ax2d.tick_params(axis='both', which='major', labelsize=10)
-        plt.colorbar(
-            im,
-            # fraction=0.012,
-            # pad=0.04,
-            format="%.e", extend='max',
-            ticks=np.logspace(1, np.log10(v_max), np.log10(v_max)),
-            orientation='horizontal',
-        )
-
-        self.canvas.draw()
-
-        self.plot_widget.setWindowTitle(self.attr['title'])
-
-    def closeEvent(self, event):
-        self.attr.update(self.param)
-        self.send_param.emit(dict(self.attr))
-        event.accept()
-
-    # Build canvas
+    # ========Main Canvas======================================================
     def _build_plot_widget(self):
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setSizePolicy(
@@ -212,6 +172,46 @@ class PfProc(ProcModule):
 
         self.refresh_canvas.connect(self._repaint)
 
+    @QtCore.pyqtSlot(bool)
+    def _repaint(self, message):
+        self.figure.clf()
+        v_max = (
+            int(self.attr['v_max'])
+            if ('v_max' in self.attr and self.attr['v_max'])
+            else 10
+        )
+        v_min = (
+            np.int64(self.attr['v_min'])
+            if ('v_min' in self.attr and self.attr['v_min'])
+            else 10000
+        )
+        ver_min = np.int64(self.attr['phi_min'])
+        ver_max = np.int64(self.attr['phi_max'])
+        hor_min = np.int64(self.attr['khi_min'])
+        hor_max = np.int64(self.attr['khi_max'])
+        plt.figure(self.figure.number)
+        ax2d = plt.gca()
+        im = ax2d.imshow(
+            self.data,
+            origin="lower",
+            norm=LogNorm(vmin=v_min, vmax=v_max),
+            extent=[ver_min, ver_max, hor_min, hor_max]
+        )
+
+        ax2d.tick_params(axis='both', which='major', labelsize=10)
+        plt.colorbar(
+            im,
+            # fraction=0.012,
+            # pad=0.04,
+            format="%.e", extend='max',
+            ticks=np.logspace(1, np.log10(v_max), np.log10(v_max)),
+            orientation='horizontal',
+        )
+
+        self.canvas.draw()
+        if 'title' in self.attr:
+            self.plot_widget.setWindowTitle(self.attr['title'])
+
     # Canvas Event
     def _on_press(self, event):
         ax_list = self.figure.axes
@@ -251,7 +251,7 @@ class PfProc(ProcModule):
             outer_index_list=outer_index_list
         )
 
-    # Config Menu
+    # =======Config Menu=======================================================
     def _configuration(self):
         _tmp = self.param['Beam Int']
         self.param.pop('Beam Int', None)
@@ -462,7 +462,8 @@ class PfProc(ProcModule):
         for i in range(3):
             int_data_m = gaussian_filter(int_data_m, 4, mode='nearest')
         local_max = (
-            maximum_filter(int_data_m, footprint=neighborhood) == int_data_m
+                maximum_filter(int_data_m,
+                               footprint=neighborhood) == int_data_m
         )
         index = np.asarray(np.where(local_max))
         ft_index_list = [[i, j] for (i, j) in zip(index[1, :], index[0, :])]
@@ -508,7 +509,8 @@ class PfProc(ProcModule):
         bm_int = int(self.param['Beam Int'])
         v = abs(float(self.attr['vit_ang']))
         omega = [
-            (np.pi / 2 - np.arccos(np.cos(np.deg2rad(chi[1])) * np.sin(np.deg2rad(14.22))))
+            (np.pi / 2 - np.arccos(
+                np.cos(np.deg2rad(chi[1])) * np.sin(np.deg2rad(14.22))))
             for chi in ind_l]
         i_theo_l = [
             self.i_theory(bm_int, v, i, i, th, 1) for i in omega]
@@ -550,6 +552,31 @@ class PfProc(ProcModule):
         return q_dialog
 
     def _res_dialog(self, int_vsot_bg_m, volume_fraction_matrix):
+        def _save2csv(int_list, fraction_list):
+            """Save data to csv file.
+
+            :param int_list: List contains intensity of peaks
+            :param fraction_list: List contains volume fraction of peaks.
+            :return: Csv file name.
+            """
+            file_name = QtWidgets.QFileDialog.getSaveFileName(
+                caption='Save to csv file...',
+                directory="/",
+                filter="Comma-separated values file (*.csv)"
+            )
+            file_name = str(file_name[0])
+            if not file_name:
+                return
+            import csv
+            with open(file_name, 'w') as fp:
+                spam_writer = csv.writer(fp, dialect='excel', delimiter=";")
+                spam_writer.writerow(
+                    ["", 'MT-A', 'MT-D', 'MT-C', 'MT-B', 'MT'])
+                spam_writer.writerow(["Intensity"] + int_list)
+                spam_writer.writerow(["Volume fraction"] + fraction_list)
+
+            return file_name,
+
         q_table = QtWidgets.QTableWidget()
         q_table.resize(700, 200)
         q_table.setColumnCount(5)
@@ -558,7 +585,8 @@ class PfProc(ProcModule):
             ['MT-A', 'MT-D', 'MT-C', 'MT-B', 'MT'])
         q_table.setVerticalHeaderLabels(
             ["Abs int", "Volume Fraction(%)"])
-        i_l = int_vsot_bg_m.tolist()
+
+        i_l = list(int_vsot_bg_m.tolist())
         i_l.append(np.sum(int_vsot_bg_m))
         i_l = list(map(partial(round, ndigits=2), i_l))
         for i in range(len(i_l)):
@@ -566,7 +594,8 @@ class PfProc(ProcModule):
                 0, i,
                 QtWidgets.QTableWidgetItem(str(i_l[i]))
             )
-        f_l = volume_fraction_matrix.tolist()
+
+        f_l = list(volume_fraction_matrix.tolist())
         f_l.append(np.sum(volume_fraction_matrix))
         f_l = list(map(partial(round, ndigits=2), f_l))
         for i in range(len(f_l)):
@@ -574,12 +603,13 @@ class PfProc(ProcModule):
                 1, i,
                 QtWidgets.QTableWidgetItem(str(f_l[i]))
             )
+
         q_table.resizeColumnsToContents()
         q_table.resizeRowsToContents()
 
         # Save to Csv Button
         _save2csv_button = QtWidgets.QPushButton("Save to Csv...")
-        _save2csv_button.clicked.connect(lambda: self._save2csv(i_l, f_l))
+        _save2csv_button.clicked.connect(lambda: _save2csv(i_l, f_l))
         # Button Group sub layout
         _show_res_wd_sub_layout = QtWidgets.QHBoxLayout()
         _show_res_wd_sub_layout.addWidget(
@@ -602,31 +632,6 @@ class PfProc(ProcModule):
 
         return _show_res_wd
 
-    @staticmethod
-    def _save2csv(int_list, fraction_list):
-        """Save data to csv file.
-
-        :param int_list: List contains intensity of peaks
-        :param fraction_list: List contains volume fraction of peaks.
-        :return: Csv file name.
-        """
-        file_name = QtWidgets.QFileDialog.getSaveFileName(
-            caption='Save to csv file...',
-            directory="/",
-            filter="Comma-separated values file (*.csv)"
-        )
-        file_name = str(file_name[0])
-        if not file_name:
-            return
-        import csv
-        with open(file_name, 'w') as fp:
-            spam_writer = csv.writer(fp, dialect='excel', delimiter=";")
-            spam_writer.writerow(["", 'MT-A', 'MT-D', 'MT-C', 'MT-B', 'MT'])
-            spam_writer.writerow(["Intensity"] + int_list)
-            spam_writer.writerow(["Volume fraction"] + fraction_list)
-
-        return file_name,
-
     # External methods.
     def plot(self):
         """Plot Image."""
@@ -636,7 +641,7 @@ class PfProc(ProcModule):
 
         return self.plot_widget
 
-    def set_data(self, data, attr):
+    def set_data(self, data, attr, *args, **kwargs):
         self.data = data[()]
         self.attr = dict(attr)
         for i in self.param:
@@ -746,8 +751,8 @@ class Square(object):
         x_min, x_max, y_min, y_max = self.lim()
         (x_limit, y_limit) = self.lm_t
         if (
-                                x_min + x_limit < item[0] < x_max + x_limit and
-                                y_min + y_limit < item[1] < y_max + y_limit):
+                x_min + x_limit < item[0] < x_max + x_limit and
+                y_min + y_limit < item[1] < y_max + y_limit):
             return True
         else:
             return False

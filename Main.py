@@ -12,6 +12,8 @@ from ui.GUI import Ui_MainWindow
 from ui.PrefInt.PreferenceInterface import PreferenceInterface
 from ui.RecipeInt.InsertRecipeInterface import InsertRecipeInterface
 from ui.TableInt.TableInt import TableInt
+import collections
+import functools
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 MODULE_DIR = os.path.join(DIR, "module")
@@ -41,6 +43,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.statusBar()
         os.chdir(DIR)
 
         self.f_path = ''
@@ -60,7 +63,20 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
         # Initiate the modules and library.
         self._init_module()
-        self._init_lib()
+        lib_f = self.cfg[PREFERENCE][GENERAL]['db_path']
+        try:
+            self._init_lib()
+        except (RuntimeError, OSError, KeyError):
+            conf = ConfirmInterface()
+            conf.set_text(
+                "Lib has been damaged, \
+                would you like to restore the last version?")
+            conf.exec()
+            if conf.get_bool():
+                os.remove(lib_f)
+                shutil.copy(os.path.join(DIR, 'lib', 'bk_lib.h5'), lib_f)
+        else:
+            shutil.copy(lib_f, os.path.join(DIR, 'lib', 'bk_lib.h5'))
 
         self.preference_inf = PreferenceInterface()
         self.preference_inf.upt_cfg.connect(self._upt_cfg)
@@ -167,6 +183,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
     # Function of library.
 
+    @block_tree_signal
     def _init_lib(self):
         """ Init the ui.QTreeWidget according to the h5 lib.
 
@@ -398,9 +415,9 @@ class ProgramInterface(QtWidgets.QMainWindow):
         try:
             self.lib.set_data(
                 data,
-                h5_path,
-                name,
-                attr
+                attr,
+                path=h5_path,
+                name=name,
             )
         except FileExistsError:
             self.temp_confirm = ConfirmInterface()
@@ -410,10 +427,10 @@ class ProgramInterface(QtWidgets.QMainWindow):
                 is_duplicate = True
                 self.lib.set_data(
                     data,
-                    h5_path,
-                    name,
                     attr,
-                    is_force=True
+                    path=h5_path,
+                    name=name,
+                    is_force=True,
                 )
             else:
                 return
@@ -486,22 +503,25 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.lib.set_rcp(f_path, msg)
 
     @QtCore.pyqtSlot(dict)
-    def set_attr(self, message):
+    def set_attr(self, message, prt=None):
         logging.debug(message)
-        item = self.ui.treeWidget.currentItem()
-        h5_path = self._item2h5(item)
+        h5_path = prt
         for i in message:
             self.lib.fh[h5_path].attrs[i] = message[i]
         try:
             self.attrInt.proc_done.disconnect(self.set_attr)
         except (AttributeError, TypeError):
             pass
+        self.lib.fh.flush()
 
     def plot_item(self):
-        processor = self._get_data_processor(
-            self.ui.treeWidget.currentItem())
+        item = self.ui.treeWidget.currentItem()
+        processor = self._get_data_processor(item)
 
-        processor.send_param.connect(self.set_attr)
+        processor.send_param.connect(
+            functools.partial(self.set_attr, prt=self._item2h5(item))
+        )
+        processor.update_gui_cfg.connect(self._upt_cfg)
         processor.plot()
 
     # Accept drag function for main window.
@@ -586,14 +606,20 @@ class ProgramInterface(QtWidgets.QMainWindow):
         try:
             processor = self.cfg['TYPE_DICT'][proc_type]
         except KeyError:
-            print(proc_type)
-            raise TypeError("Unknown Type. \
-               Please confirm this type is supported by at least one module.")
+            logging.error(proc_type)
+            raise TypeError(
+                "Unknown Type." +
+                "Please confirm this type is supported by at least one module."
+            )
 
         _tmp = __import__('module', globals(), locals(), [processor], 0)
 
         processor = getattr(getattr(_tmp, processor), processor)()
-        processor.set_data(self.lib.fh[h5_path], self.lib.fh[h5_path].attrs)
+        processor.set_data(
+            self.lib.fh[h5_path],
+            self.lib.fh[h5_path].attrs,
+            self.cfg[MODULE_G][self.cfg['TYPE_DICT'][proc_type]]
+        )
 
         logging.debug("Successfully read file...")
         return processor
@@ -611,7 +637,30 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(dict, name='update_dict')
     def _upt_cfg(self, msg):
-        self.cfg.update(msg)
+        def update(d, u):
+            for k, v in u.items():
+                if isinstance(v, collections.Mapping):
+                    d[k] = update(d.get(k, {}), v)
+                else:
+                    d[k] = v
+            return d
+
+        update(self.cfg, msg)
+        self._init_lib()
+
+    @QtCore.pyqtSlot(dict, name='add_key')
+    def _add_cfg(self, msg):
+        import collections
+
+        def update(d, u):
+            for k, v in u.items():
+                if isinstance(v, collections.Mapping):
+                    d[k] = update(d.get(k, {}), v)
+                else:
+                    d[k] = v
+            return d
+
+        update(self.cfg, msg)
         self._init_lib()
 
     def _write_cfg(self):
