@@ -101,7 +101,7 @@ class RawFile(FileModule):
             data = np.vstack(
                 (
                     self.two_d_data(data_list, 0),
-                    self.two_d_data(data_list, 1)/attr['_STEPTIME']
+                    self.two_d_data(data_list, 1) / attr['_STEPTIME']
                 )
             )
             if attr['_SCAN_TYPE'] == 'detector scan':

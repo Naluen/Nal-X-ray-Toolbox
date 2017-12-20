@@ -16,9 +16,11 @@ class RCurveProc(OneDProcModule):
     def __init__(self):
         super(RCurveProc, self).__init__()
         self.param = {
-            'Thickness of sample': 1,
-            'HKL': 0,
-            'Beam Int': 1
+            'Thickness of sample': 900,
+            'H': 1,
+            'K': 1,
+            'L': 1,
+            'Beam Int': 100000000
 
         }
         self._peak_side_point = []
@@ -110,7 +112,7 @@ class RCurveProc(OneDProcModule):
         target_tool_button = QtWidgets.QToolButton()
 
         auto_target_action = QtWidgets.QAction(
-            QtGui.QIcon(QtGui.QPixmap('icons/cross-shaped-target.png')),
+            QtGui.QIcon(QtGui.QPixmap('icons/target.png')),
             "Auto align data",
         )
         auto_target_action.triggered.connect(lambda: self._target(mode='auto'))
@@ -233,27 +235,38 @@ class RCurveProc(OneDProcModule):
         self.set_q_int_line_v.emit(beam_int)
 
     # ========Intensity input line edit.=======================================
-    set_hkl_box_v = QtCore.pyqtSignal(int)
+    set_h_box_v = QtCore.pyqtSignal(str)
+    set_k_box_v = QtCore.pyqtSignal(str)
+    set_l_box_v = QtCore.pyqtSignal(str)
 
     def _build_hkl_box(self):
         self.hkl_wd = QtWidgets.QWidget()
         sub_hkl_layout = QtWidgets.QVBoxLayout()
-        self.hkl_box = QtWidgets.QComboBox()
-        self.hkl_box.addItems(list(self.HKL_DICT.keys()))
-        self.hkl_box.setCurrentIndex(self.param['HKL'])
-        self.hkl_box.currentIndexChanged.connect(
-            partial(self.param.__setitem__, 'HKL')
-        )
+
+        horizontal_layout = QtWidgets.QHBoxLayout()
+        h_box = QtWidgets.QLineEdit(str(self.param['H']))
+        h_box.setInputMask("#9")
+        h_box.textChanged.connect(partial(self.param.__setitem__, 'H'))
+        self.set_h_box_v.connect(h_box.setText)
+        k_box = QtWidgets.QLineEdit(str(self.param['K']))
+        k_box.setInputMask("#9")
+        k_box.textChanged.connect(partial(self.param.__setitem__, 'K'))
+        self.set_k_box_v.connect(k_box.setText)
+        l_box = QtWidgets.QLineEdit(str(self.param['L']))
+        l_box.setInputMask("#9")
+        l_box.textChanged.connect(partial(self.param.__setitem__, 'L'))
+        self.set_l_box_v.connect(l_box.setText)
+
+        horizontal_layout.addWidget(QtWidgets.QLabel("H:"))
+        horizontal_layout.addWidget(h_box)
+        horizontal_layout.addWidget(QtWidgets.QLabel("K:"))
+        horizontal_layout.addWidget(k_box)
+        horizontal_layout.addWidget(QtWidgets.QLabel("L:"))
+        horizontal_layout.addWidget(l_box)
+
         sub_hkl_layout.addWidget(QtWidgets.QLabel("Choose the HKL:"))
-        sub_hkl_layout.addWidget(self.hkl_box)
+        sub_hkl_layout.addLayout(horizontal_layout)
         self.hkl_wd.setLayout(sub_hkl_layout)
-
-        self.set_hkl_box_v.connect(self._set_hkl_box)
-
-    @QtCore.pyqtSlot(int)
-    def _set_hkl_box(self, msg):
-        self.hkl_box.setCurrentIndex(msg)
-        self.param['HKL'] = int(msg)
 
     # =========================================================================
 
@@ -264,7 +277,7 @@ class RCurveProc(OneDProcModule):
         sub_layout = QtWidgets.QVBoxLayout()
         q_line = QtWidgets.QLineEdit(str(self.param['Thickness of sample']))
         q_line.textChanged.connect(
-            partial(self.param.__setitem__, 'Thickness of sample'))
+            partial(self._upt_param, 'Thickness of sample'))
         sub_layout.addWidget(QtWidgets.QLabel("The thickness of sample:"))
         sub_layout.addWidget(q_line)
         q_t_wd.setLayout(sub_layout)
@@ -291,8 +304,15 @@ class RCurveProc(OneDProcModule):
         step_time = self.attr['_STEPTIME']
         step_size = self.attr['_STEP_SIZE']
         intensity = self._res[0] * self._res[1] * step_time / step_size
-        theta = self._bragg_angle_cal(
-            0.54505, list(self.HKL_DICT.values())[self.param['HKL']]) / 2
+        two_theta = self._bragg_angle_cal(
+            0.54505,
+            (
+                float(self.param['H']),
+                float(self.param['K']),
+                float(self.param['L'])
+            )
+        )
+        theta = two_theta / 2
         th = int(self.param['Thickness of sample'])
         bm_int = int(self.param['Beam Int'])
         v = np.deg2rad(step_size) / step_time
@@ -335,11 +355,12 @@ class RCurveProc(OneDProcModule):
     # Config Menu.=============================================================
     def _configuration(self):
         _tmp = self.param.copy()
-        self.param.pop('HKL', None)
+        self.param.pop('H', None)
+        self.param.pop('K', None)
+        self.param.pop('L', None)
         self.param.pop('Beam Int', None)
         self._configuration_wd = self._build_widget()
-        self.param['HKL'] = _tmp['HKL']
-        self.param['Beam Int'] = _tmp['Beam Int']
+        self.param = _tmp
 
         self._configuration_wd.layout().addWidget(self.q_line_wd)
         self._configuration_wd.layout().addWidget(self.hkl_wd)
@@ -376,5 +397,9 @@ class RCurveProc(OneDProcModule):
                 self.param[i] = self.attr[i]
         if 'Beam Int' in self.attr:
             self.set_q_int_line_v.emit(self.attr['Beam Int'])
-        if 'HKL' in self.attr:
-            self.set_hkl_box_v.emit(self.attr['HKL'])
+        if 'H' in self.attr:
+            self.set_h_box_v.emit(str(self.attr['H']))
+        if 'K' in self.attr:
+            self.set_k_box_v.emit(str(self.attr['K']))
+        if 'L' in self.attr:
+            self.set_l_box_v.emit(str(self.attr['L']))

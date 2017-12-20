@@ -1,3 +1,5 @@
+import collections
+import functools
 import logging
 import os
 import shutil
@@ -12,8 +14,6 @@ from ui.GUI import Ui_MainWindow
 from ui.PrefInt.PreferenceInterface import PreferenceInterface
 from ui.RecipeInt.InsertRecipeInterface import InsertRecipeInterface
 from ui.TableInt.TableInt import TableInt
-import collections
-import functools
 
 DIR = os.path.dirname(os.path.abspath(__file__))
 MODULE_DIR = os.path.join(DIR, "module")
@@ -63,7 +63,6 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
         # Initiate the modules and library.
         self._init_module()
-        lib_f = self.cfg[PREFERENCE][GENERAL]['db_path']
         try:
             self._init_lib()
         except (RuntimeError, OSError, KeyError):
@@ -73,10 +72,16 @@ class ProgramInterface(QtWidgets.QMainWindow):
                 would you like to restore the last version?")
             conf.exec()
             if conf.get_bool():
-                os.remove(lib_f)
-                shutil.copy(os.path.join(DIR, 'lib', 'bk_lib.h5'), lib_f)
+                os.remove(self.cfg[PREFERENCE][GENERAL]['db_path'])
+                shutil.copy(
+                    os.path.join(DIR, 'lib', 'bk_lib.h5'),
+                    self.cfg[PREFERENCE][GENERAL]['db_path']
+                )
         else:
-            shutil.copy(lib_f, os.path.join(DIR, 'lib', 'bk_lib.h5'))
+            shutil.copy(
+                self.cfg[PREFERENCE][GENERAL]['db_path'],
+                os.path.join(DIR, 'lib', 'bk_lib.h5')
+            )
 
         self.preference_inf = PreferenceInterface()
         self.preference_inf.upt_cfg.connect(self._upt_cfg)
@@ -193,7 +198,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         path = 'db_path'
         lib_f = self.cfg[PREFERENCE][GENERAL][path]
         if not os.path.isfile(lib_f):
-            lib_f = os.path.join(DIR, 'lib.h5')
+            lib_f = os.path.join(DIR, 'lib', 'lib.h5')
             self.cfg[PREFERENCE][GENERAL][path] = lib_f
 
             h5py.File(lib_f, 'w')
@@ -637,15 +642,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(dict, name='update_dict')
     def _upt_cfg(self, msg):
-        def update(d, u):
-            for k, v in u.items():
-                if isinstance(v, collections.Mapping):
-                    d[k] = update(d.get(k, {}), v)
-                else:
-                    d[k] = v
-            return d
-
-        update(self.cfg, msg)
+        self.update(self.cfg, msg)
         self._init_lib()
 
     @QtCore.pyqtSlot(dict, name='add_key')
@@ -683,6 +680,15 @@ class ProgramInterface(QtWidgets.QMainWindow):
         text_l.reverse()
         text_s = '/'.join(text_l)
         return text_s
+
+    @classmethod
+    def update(cls, d, u):
+        for k, v in u.items():
+            if isinstance(v, collections.Mapping):
+                d[k] = cls.update(d.get(k, {}), v)
+            else:
+                d[k] = v
+        return d
 
     def _h52item(self, h5_s):
         """Get the corresponding h5 path of a qTreeItem

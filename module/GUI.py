@@ -6,7 +6,8 @@
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -85,7 +86,8 @@ class Ui_MainWindow(object):
         self.menuEdit.setTitle(_translate("MainWindow", "Edit"))
         self.menuLibrary.setTitle(_translate("MainWindow", "Library"))
         self.menuModule.setTitle(_translate("MainWindow", "Module"))
-        self.menuInstalled_Module.setTitle(_translate("MainWindow", "Installed Module"))
+        self.menuInstalled_Module.setTitle(
+            _translate("MainWindow", "Installed Module"))
         self.toolBar.setWindowTitle(_translate("MainWindow", "toolBar"))
         self.actionOpen_2.setText(_translate("MainWindow", "Open"))
         self.actionParameters.setText(_translate("MainWindow", "Parameters"))
@@ -101,10 +103,10 @@ class Ui_MainWindow(object):
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
     MainWindow.show()
     sys.exit(app.exec_())
-

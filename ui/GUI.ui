@@ -1,235 +1,235 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>833</width>
-    <height>622</height>
-   </rect>
-  </property>
-  <property name="windowTitle">
-   <string>MainWindow</string>
-  </property>
-  <widget class="QWidget" name="centralwidget">
-   <layout class="QHBoxLayout" name="horizontalLayout">
-    <item>
-     <widget class="QTreeWidget" name="treeWidget">
-      <column>
-       <property name="text">
-        <string notr="true">1</string>
-       </property>
-      </column>
-     </widget>
-    </item>
-   </layout>
-  </widget>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>833</width>
-     <height>21</height>
-    </rect>
-   </property>
-   <widget class="QMenu" name="menuFile">
-    <property name="title">
-     <string>File</string>
-    </property>
-    <addaction name="actionOpen_2"/>
-    <addaction name="separator"/>
-   </widget>
-   <widget class="QMenu" name="menuEdit">
-    <property name="title">
-     <string>Edit</string>
-    </property>
-    <addaction name="actionParameters"/>
-   </widget>
-   <widget class="QMenu" name="menuLibrary">
-    <property name="title">
-     <string>Library</string>
-    </property>
-    <addaction name="actionImport_Data"/>
-    <addaction name="actionAdd_Group"/>
-    <addaction name="actionCut"/>
-    <addaction name="actionCopy"/>
-    <addaction name="actionDelete_Data"/>
-    <addaction name="action_Detail"/>
-    <addaction name="actionRename"/>
-    <addaction name="actionPaste"/>
-    <addaction name="separator"/>
-    <addaction name="actionImport_Lib"/>
-    <addaction name="actionExport_Lib"/>
-    <addaction name="separator"/>
-    <addaction name="actionInsert_Recipe"/>
-   </widget>
-   <widget class="QMenu" name="menuModule">
-    <property name="title">
-     <string>Module</string>
-    </property>
-    <widget class="QMenu" name="menuInstalled_Module">
-     <property name="title">
-      <string>Installed Module</string>
-     </property>
-     <addaction name="separator"/>
+    <class>MainWindow</class>
+    <widget class="QMainWindow" name="MainWindow">
+        <property name="geometry">
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>833</width>
+                <height>622</height>
+            </rect>
+        </property>
+        <property name="windowTitle">
+            <string>MainWindow</string>
+        </property>
+        <widget class="QWidget" name="centralwidget">
+            <layout class="QHBoxLayout" name="horizontalLayout">
+                <item>
+                    <widget class="QTreeWidget" name="treeWidget">
+                        <column>
+                            <property name="text">
+                                <string notr="true">1</string>
+                            </property>
+                        </column>
+                    </widget>
+                </item>
+            </layout>
+        </widget>
+        <widget class="QMenuBar" name="menubar">
+            <property name="geometry">
+                <rect>
+                    <x>0</x>
+                    <y>0</y>
+                    <width>833</width>
+                    <height>21</height>
+                </rect>
+            </property>
+            <widget class="QMenu" name="menuFile">
+                <property name="title">
+                    <string>File</string>
+                </property>
+                <addaction name="actionOpen_2"/>
+                <addaction name="separator"/>
+            </widget>
+            <widget class="QMenu" name="menuEdit">
+                <property name="title">
+                    <string>Edit</string>
+                </property>
+                <addaction name="actionParameters"/>
+            </widget>
+            <widget class="QMenu" name="menuLibrary">
+                <property name="title">
+                    <string>Library</string>
+                </property>
+                <addaction name="actionImport_Data"/>
+                <addaction name="actionAdd_Group"/>
+                <addaction name="actionCut"/>
+                <addaction name="actionCopy"/>
+                <addaction name="actionDelete_Data"/>
+                <addaction name="action_Detail"/>
+                <addaction name="actionRename"/>
+                <addaction name="actionPaste"/>
+                <addaction name="separator"/>
+                <addaction name="actionImport_Lib"/>
+                <addaction name="actionExport_Lib"/>
+                <addaction name="separator"/>
+                <addaction name="actionInsert_Recipe"/>
+            </widget>
+            <widget class="QMenu" name="menuModule">
+                <property name="title">
+                    <string>Module</string>
+                </property>
+                <widget class="QMenu" name="menuInstalled_Module">
+                    <property name="title">
+                        <string>Installed Module</string>
+                    </property>
+                    <addaction name="separator"/>
+                </widget>
+                <addaction name="actionAdd_Module"/>
+                <addaction name="menuInstalled_Module"/>
+            </widget>
+            <widget class="QMenu" name="menuPlot">
+                <property name="title">
+                    <string>Plot</string>
+                </property>
+                <addaction name="action_Plot"/>
+            </widget>
+            <addaction name="menuFile"/>
+            <addaction name="menuEdit"/>
+            <addaction name="menuLibrary"/>
+            <addaction name="menuPlot"/>
+            <addaction name="menuModule"/>
+        </widget>
+        <widget class="QStatusBar" name="statusbar"/>
+        <widget class="QToolBar" name="toolBar">
+            <property name="windowTitle">
+                <string>toolBar</string>
+            </property>
+            <attribute name="toolBarArea">
+                <enum>TopToolBarArea</enum>
+            </attribute>
+            <attribute name="toolBarBreak">
+                <bool>false</bool>
+            </attribute>
+        </widget>
+        <action name="actionOpen_2">
+            <property name="text">
+                <string>Open</string>
+            </property>
+        </action>
+        <action name="actionParameters">
+            <property name="text">
+                <string>Parameters</string>
+            </property>
+        </action>
+        <action name="actionAdd_Module">
+            <property name="text">
+                <string>Add</string>
+            </property>
+        </action>
+        <action name="actionImport_Data">
+            <property name="text">
+                <string>&amp;Add Data</string>
+            </property>
+            <property name="shortcut">
+                <string>Alt+A</string>
+            </property>
+        </action>
+        <action name="actionExport">
+            <property name="text">
+                <string>Inport</string>
+            </property>
+        </action>
+        <action name="actionImport">
+            <property name="text">
+                <string>Import</string>
+            </property>
+        </action>
+        <action name="actionExport_2">
+            <property name="text">
+                <string>Export</string>
+            </property>
+        </action>
+        <action name="actionImport_Lib">
+            <property name="text">
+                <string>Import Lib</string>
+            </property>
+            <property name="shortcut">
+                <string>Ctrl+Alt+Ins</string>
+            </property>
+        </action>
+        <action name="actionExport_Lib">
+            <property name="text">
+                <string>Export Lib</string>
+            </property>
+        </action>
+        <action name="actionDelete_Data">
+            <property name="text">
+                <string>Delete</string>
+            </property>
+            <property name="shortcut">
+                <string>Del</string>
+            </property>
+        </action>
+        <action name="actionRename">
+            <property name="text">
+                <string>&amp;Rename</string>
+            </property>
+            <property name="shortcut">
+                <string>Alt+R</string>
+            </property>
+        </action>
+        <action name="actionCut">
+            <property name="text">
+                <string>Cut</string>
+            </property>
+            <property name="shortcut">
+                <string>Alt+X</string>
+            </property>
+        </action>
+        <action name="actionCopy">
+            <property name="text">
+                <string>&amp;Copy</string>
+            </property>
+            <property name="shortcut">
+                <string>Alt+C</string>
+            </property>
+        </action>
+        <action name="actionPaste">
+            <property name="text">
+                <string>&amp;Paste</string>
+            </property>
+            <property name="shortcut">
+                <string>Alt+P</string>
+            </property>
+        </action>
+        <action name="action_Detail">
+            <property name="text">
+                <string>&amp;Detail</string>
+            </property>
+            <property name="shortcut">
+                <string>Alt+D</string>
+            </property>
+        </action>
+        <action name="action_Plot">
+            <property name="text">
+                <string>&amp;Plot</string>
+            </property>
+            <property name="shortcut">
+                <string>Alt+P</string>
+            </property>
+        </action>
+        <action name="actionInsert_Recipe">
+            <property name="text">
+                <string>Recipe</string>
+            </property>
+            <property name="toolTip">
+                <string>Recipe</string>
+            </property>
+            <property name="shortcut">
+                <string>Ctrl+Alt+Shift+R</string>
+            </property>
+        </action>
+        <action name="actionAdd_Group">
+            <property name="text">
+                <string>Add Group</string>
+            </property>
+            <property name="shortcut">
+                <string>Ctrl+Alt+Shift+A</string>
+            </property>
+        </action>
     </widget>
-    <addaction name="actionAdd_Module"/>
-    <addaction name="menuInstalled_Module"/>
-   </widget>
-   <widget class="QMenu" name="menuPlot">
-    <property name="title">
-     <string>Plot</string>
-    </property>
-    <addaction name="action_Plot"/>
-   </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuEdit"/>
-   <addaction name="menuLibrary"/>
-   <addaction name="menuPlot"/>
-   <addaction name="menuModule"/>
-  </widget>
-  <widget class="QStatusBar" name="statusbar"/>
-  <widget class="QToolBar" name="toolBar">
-   <property name="windowTitle">
-    <string>toolBar</string>
-   </property>
-   <attribute name="toolBarArea">
-    <enum>TopToolBarArea</enum>
-   </attribute>
-   <attribute name="toolBarBreak">
-    <bool>false</bool>
-   </attribute>
-  </widget>
-  <action name="actionOpen_2">
-   <property name="text">
-    <string>Open</string>
-   </property>
-  </action>
-  <action name="actionParameters">
-   <property name="text">
-    <string>Parameters</string>
-   </property>
-  </action>
-  <action name="actionAdd_Module">
-   <property name="text">
-    <string>Add</string>
-   </property>
-  </action>
-  <action name="actionImport_Data">
-   <property name="text">
-    <string>&amp;Add Data</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+A</string>
-   </property>
-  </action>
-  <action name="actionExport">
-   <property name="text">
-    <string>Inport</string>
-   </property>
-  </action>
-  <action name="actionImport">
-   <property name="text">
-    <string>Import</string>
-   </property>
-  </action>
-  <action name="actionExport_2">
-   <property name="text">
-    <string>Export</string>
-   </property>
-  </action>
-  <action name="actionImport_Lib">
-   <property name="text">
-    <string>Import Lib</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Alt+Ins</string>
-   </property>
-  </action>
-  <action name="actionExport_Lib">
-   <property name="text">
-    <string>Export Lib</string>
-   </property>
-  </action>
-  <action name="actionDelete_Data">
-   <property name="text">
-    <string>Delete</string>
-   </property>
-   <property name="shortcut">
-    <string>Del</string>
-   </property>
-  </action>
-  <action name="actionRename">
-   <property name="text">
-    <string>&amp;Rename</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+R</string>
-   </property>
-  </action>
-  <action name="actionCut">
-   <property name="text">
-    <string>Cut</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+X</string>
-   </property>
-  </action>
-  <action name="actionCopy">
-   <property name="text">
-    <string>&amp;Copy</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+C</string>
-   </property>
-  </action>
-  <action name="actionPaste">
-   <property name="text">
-    <string>&amp;Paste</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+P</string>
-   </property>
-  </action>
-  <action name="action_Detail">
-   <property name="text">
-    <string>&amp;Detail</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+D</string>
-   </property>
-  </action>
-  <action name="action_Plot">
-   <property name="text">
-    <string>&amp;Plot</string>
-   </property>
-   <property name="shortcut">
-    <string>Alt+P</string>
-   </property>
-  </action>
-  <action name="actionInsert_Recipe">
-   <property name="text">
-    <string>Recipe</string>
-   </property>
-   <property name="toolTip">
-    <string>Recipe</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Alt+Shift+R</string>
-   </property>
-  </action>
-  <action name="actionAdd_Group">
-   <property name="text">
-    <string>Add Group</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Alt+Shift+A</string>
-   </property>
-  </action>
- </widget>
- <resources/>
- <connections/>
+    <resources/>
+    <connections/>
 </ui>

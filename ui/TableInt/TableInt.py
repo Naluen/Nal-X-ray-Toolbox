@@ -1,11 +1,11 @@
 import logging
+from distutils import util
 
+import numpy as np
 from PyQt5 import QtWidgets, QtCore
 
-from ui.TableInt.table import Ui_Form
 from ui.ConfirmInt.ConfirmInterface import ConfirmInterface
-import numpy as np
-from distutils import util
+from ui.TableInt.table import Ui_Form
 
 
 class TableInt(QtWidgets.QWidget):

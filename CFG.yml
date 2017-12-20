@@ -8,7 +8,7 @@ MODULE:
   RCurveProc:
     name: RCurveProc
     res_table_wd_size:
-    - 220
+    - 473
     - 358
   RSMProc:
     name: RSMProc
@@ -21,7 +21,7 @@ MODULE:
 PREFERENCE:
   GENERAL:
     db_lib_path: C:\Users\hang\Documents\GitHub\foton_report_genarator\lib\mat.h5
-    db_path: C:/Users/hang/Dropbox/Experimental_Data/xrd_lib.h5
+    db_path: C:/Users/hang/Dropbox/Thesis/Experimental_Data/xrd_lib.h5
 TYPE_DICT:
   .flt: FltFile
   .h5: H5File

@@ -1,6 +1,5 @@
 import abc
 import logging
-from collections import OrderedDict
 from functools import partial
 
 import numpy
@@ -36,7 +35,7 @@ class Module(QtCore.QObject):
                 sub_layout = QtWidgets.QHBoxLayout()
                 qradiobox = QtWidgets.QRadioButton(i)
                 qradiobox.setChecked(self.param[i])
-                qradiobox.toggled.connect(partial(self.param.__setitem__, i))
+                qradiobox.toggled.connect(partial(self._upt_param, i))
                 sub_layout.addWidget(qradiobox)
                 sub_widget.setLayout(sub_layout)
                 layout.addWidget(sub_widget)
@@ -45,7 +44,7 @@ class Module(QtCore.QObject):
                 sub_layout = QtWidgets.QVBoxLayout()
                 sub_layout.addWidget(QtWidgets.QLabel('{0}:'.format(i)))
                 qline = QtWidgets.QLineEdit(self.param[i])
-                qline.textChanged.connect(partial(self.param.__setitem__, i))
+                qline.textChanged.connect(partial(self._upt_param, i))
                 sub_layout.addWidget(qline)
                 sub_widget.setLayout(sub_layout)
                 layout.addWidget(sub_widget)
@@ -58,7 +57,7 @@ class Module(QtCore.QObject):
                 p_spin.setMaximum(10000000)
                 p_spin.setSingleStep(1)
                 p_spin.setValue(self.param[i])
-                p_spin.valueChanged.connect(partial(self.param.__setitem__, i))
+                p_spin.valueChanged.connect(partial(self._upt_param, i))
                 sub_layout.addWidget(p_spin)
                 sub_widget.setLayout(sub_layout)
                 layout.addWidget(sub_widget)
@@ -67,41 +66,20 @@ class Module(QtCore.QObject):
                 sub_layout = QtWidgets.QHBoxLayout()
                 sub_layout.addWidget(QtWidgets.QLabel('{0}:'.format(i)))
                 qline = QtWidgets.QLineEdit(self.param[i])
-                qline.textChanged.connect(
-                    lambda: self.param.update({i: float(qline.text()[0])}))
+                qline.textChanged.connect(partial(self._upt_param, i))
                 sub_layout.addWidget(qline)
                 sub_widget.setLayout(sub_layout)
                 layout.addWidget(sub_widget)
-            elif isinstance(self.param[i], range):
-                sub_widget = QtWidgets.QWidget()
-                sub_layout = QtWidgets.QHBoxLayout()
-                sub_layout.addWidget(QtWidgets.QLabel('{0}:'.format(i)))
-                qline = QtWidgets.QLineEdit(self.param[i])
-                range_keeper = (
-                    lambda ind, range_l: min(max(range_l[0], ind),
-                                             range_l[-1]))
-                qline.textChanged.connect(
-                    lambda: self.param.update(
-                        {i: range_keeper(float(qline.text()[0]),
-                                         self.param[i])}
-                    ))
-                qline.textChanged.connect(
-                    lambda: qline.setText(str(
-                        range_keeper(float(qline.text()[0]), self.param[i]))))
-                sub_layout.addWidget(qline)
-                sub_widget.setLayout(sub_layout)
-                layout.addWidget(sub_widget)
-
             else:
                 pass
 
-        try:
-            del i
-        except UnboundLocalError:
-            pass
         widget.setLayout(layout)
 
         return widget
+
+    def _upt_param(self, key='', value=''):
+        print(key, value)
+        self.param[key] = value
 
 
 class FileModule(Module):
@@ -231,16 +209,6 @@ class OneDProcModule(ProcModule):
             'lorentz': self.lorentzian_func,
             'gaussian': self.gaussian_func,
         }
-
-    @property
-    def HKL_DICT(self):
-        hkl_dict = OrderedDict({
-            '002': [0, 0, 2],
-            '004': [0, 0, 4],
-            '006': [0, 0, 6],
-            '-2-24': [-2, -2, 4],
-        })
-        return hkl_dict
 
     @staticmethod
     def gaussian_func(x, alpha):

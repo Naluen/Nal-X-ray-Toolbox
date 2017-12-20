@@ -6,7 +6,8 @@
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
+
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -115,7 +116,8 @@ class Ui_MainWindow(object):
         self.menuEdit.setTitle(_translate("MainWindow", "Edit"))
         self.menuLibrary.setTitle(_translate("MainWindow", "Library"))
         self.menuModule.setTitle(_translate("MainWindow", "Module"))
-        self.menuInstalled_Module.setTitle(_translate("MainWindow", "Installed Module"))
+        self.menuInstalled_Module.setTitle(
+            _translate("MainWindow", "Installed Module"))
         self.menuPlot.setTitle(_translate("MainWindow", "Plot"))
         self.toolBar.setWindowTitle(_translate("MainWindow", "toolBar"))
         self.actionOpen_2.setText(_translate("MainWindow", "Open"))
@@ -127,7 +129,8 @@ class Ui_MainWindow(object):
         self.actionImport.setText(_translate("MainWindow", "Import"))
         self.actionExport_2.setText(_translate("MainWindow", "Export"))
         self.actionImport_Lib.setText(_translate("MainWindow", "Import Lib"))
-        self.actionImport_Lib.setShortcut(_translate("MainWindow", "Ctrl+Alt+Ins"))
+        self.actionImport_Lib.setShortcut(
+            _translate("MainWindow", "Ctrl+Alt+Ins"))
         self.actionExport_Lib.setText(_translate("MainWindow", "Export Lib"))
         self.actionDelete_Data.setText(_translate("MainWindow", "Delete"))
         self.actionDelete_Data.setShortcut(_translate("MainWindow", "Del"))
@@ -145,17 +148,19 @@ class Ui_MainWindow(object):
         self.action_Plot.setShortcut(_translate("MainWindow", "Alt+P"))
         self.actionInsert_Recipe.setText(_translate("MainWindow", "Recipe"))
         self.actionInsert_Recipe.setToolTip(_translate("MainWindow", "Recipe"))
-        self.actionInsert_Recipe.setShortcut(_translate("MainWindow", "Ctrl+Alt+Shift+R"))
+        self.actionInsert_Recipe.setShortcut(
+            _translate("MainWindow", "Ctrl+Alt+Shift+R"))
         self.actionAdd_Group.setText(_translate("MainWindow", "Add Group"))
-        self.actionAdd_Group.setShortcut(_translate("MainWindow", "Ctrl+Alt+Shift+A"))
+        self.actionAdd_Group.setShortcut(
+            _translate("MainWindow", "Ctrl+Alt+Shift+A"))
 
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
     MainWindow.show()
     sys.exit(app.exec_())
-

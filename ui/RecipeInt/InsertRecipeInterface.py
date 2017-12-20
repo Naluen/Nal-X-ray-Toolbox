@@ -110,7 +110,6 @@ class InsertRecipeInterface(QtWidgets.QWidget):
                     else:
                         pass
 
-
         return q_table
 
 

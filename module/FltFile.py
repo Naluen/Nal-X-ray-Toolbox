@@ -36,9 +36,9 @@ class FltFile(FileModule):
             try_scan_dict = self.decode_head(try_head)
             fp.seek(0, 0)
             stuck_size = (
-                int(try_scan_dict['ResolutionX']) *
-                int(try_scan_dict['ResolutionY']) *
-                4
+                    int(try_scan_dict['ResolutionX']) *
+                    int(try_scan_dict['ResolutionY']) *
+                    4
             )
             head = fp.read()[0: -stuck_size]
 

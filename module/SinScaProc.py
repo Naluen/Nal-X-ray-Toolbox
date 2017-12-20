@@ -81,7 +81,7 @@ class SinScaProc(OneDProcModule):
 
     # External methods.
     def get_max(self, mode='simple'):
-        if mode=='simple':
+        if mode == 'simple':
             return np.max(self.data[1, :])
         else:
             self._target(is_plot=False)

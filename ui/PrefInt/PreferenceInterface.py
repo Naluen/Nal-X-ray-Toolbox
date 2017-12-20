@@ -1,8 +1,7 @@
 import logging
 import os
 
-import yaml
-from PyQt5 import QtWidgets,QtCore
+from PyQt5 import QtWidgets, QtCore
 
 from ui.ConfirmInt.ConfirmInterface import ConfirmInterface
 from ui.PrefInt.tab import Ui_Form

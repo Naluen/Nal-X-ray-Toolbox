@@ -77,7 +77,6 @@ class H5File(FileModule):
                 "Unknown input data type."
                 "Only ndarray could be written into h5file")
 
-
             # def get_recipe_plot(self):
             #     """
             #     Plot recipe in current axis.
@@ -221,7 +220,7 @@ class H5File(FileModule):
         else:
             if 'rcp' in self.fh[path].attrs:
                 mat = numpy.asarray(self.fh[path].attrs['rcp'])
-                mat.resize(int(len(mat)/6), 6)
+                mat.resize(int(len(mat) / 6), 6)
 
                 return mat
             # elif path.split('/')[-1] in self.fh['Recipe']:
