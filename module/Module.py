@@ -65,7 +65,7 @@ class Module(QtCore.QObject):
                 sub_widget = QtWidgets.QWidget()
                 sub_layout = QtWidgets.QHBoxLayout()
                 sub_layout.addWidget(QtWidgets.QLabel('{0}:'.format(i)))
-                qline = QtWidgets.QLineEdit(self.param[i])
+                qline = QtWidgets.QLineEdit(str(self.param[i]))
                 qline.textChanged.connect(partial(self._upt_param, i))
                 sub_layout.addWidget(qline)
                 sub_widget.setLayout(sub_layout)
@@ -131,7 +131,7 @@ class ProcModule(Module):
         Calculation the bragg angle based on the crystal miller
         index.
         >>> hkl_l = [(0, 0, 2), (0, 0, 4), (0, 0, 6), (2, 2, -4)]
-        >>> hkl_d = {i: RCurveProc().bragg_angle_cal(0.54505, i) for i in hkl_l}
+        >>> hkl_d = {i: ProcModule().bragg_angle_cal(0.54505, i) for i in hkl_l}
         >>> assert abs(hkl_d[(0, 0, 2)]-32.8) < 0.1
         """
         LAMBDA = 0.154055911278

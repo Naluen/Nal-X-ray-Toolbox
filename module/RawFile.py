@@ -13,6 +13,8 @@ import numpy as np
 
 from module.Module import FileModule
 
+CODE = 'iso-8859-1'
+
 
 class RawFile(FileModule):
     def __init__(self):
@@ -110,6 +112,149 @@ class RawFile(FileModule):
                 attr['Type'] = "RockingCurve"
 
         return data, attr
+
+    def parser_file(self):
+        with open(self.file, 'rb') as fp:
+            _version = fp.read(4).decode(CODE)
+            if _version == "RAW1":
+                _version = _version + fp.read(3).decode(CODE)
+            assert _version in ("RAW ", "RAW2", "RAW1.01")
+            if _version == 'RAW':
+                self.load_version1(fp)
+            elif _version == 'RAW2':
+                self.load_version2(fp)
+            else:
+                self.load_version3(fp)
+
+    @staticmethod
+    def load_version1(fh):
+        meta_header = {'FORMAT VERSION': "v1"}
+
+        return meta_header,
+
+    @staticmethod
+    def load_version2(fh):
+        meta_header = {'FORMAT VERSION': "v2"}
+
+        return meta_header,
+
+    @staticmethod
+    def load_version3(fh):
+        fh.seek(8, os.SEEK_SET)
+        meta_header = {}
+        meta_header['FORMAT VERSION'] = "v3"
+        meta_header['_FILE_STATUS_CODE'] = struct.unpack('I', fh.read(4))[0]
+        meta_header['RANGE_CNT'] = struct.unpack('I', fh.read(4))[0]
+        meta_header['DATE'] = fh.read(10).decode(CODE)
+        meta_header['TIME'] = fh.read(10).decode(CODE)
+        meta_header['USER'] = fh.read(72).decode(CODE)
+        meta_header['SITE'] = fh.read(218).decode(CODE)
+        meta_header['SAMPLE_ID'] = fh.read(60).decode(CODE)
+        meta_header['COMMENT'] = fh.read(160).decode(CODE)
+        fh.seek(2, os.SEEK_CUR)  # Error in File Design
+        fh.seek(4, os.SEEK_CUR)  # goniometer code 
+        fh.seek(4, os.SEEK_CUR)  # goniometer stage code 
+        fh.seek(4, os.SEEK_CUR)  # sample loader code
+        fh.seek(4, os.SEEK_CUR)  # goniometer controller code
+        fh.seek(4, os.SEEK_CUR)  # (R4) goniometer radius
+        fh.seek(4, os.SEEK_CUR)  # (R4) fixed divergence...
+        fh.seek(4, os.SEEK_CUR)  # (R4) fixed sample slit...
+        fh.seek(4, os.SEEK_CUR)  # primary Soller slit
+        fh.seek(4, os.SEEK_CUR)  # primary monochromator
+        fh.seek(4, os.SEEK_CUR)  # (R4) fixed anti-scatter...
+        fh.seek(4, os.SEEK_CUR)  # (R4) fixed detector slit...
+        fh.seek(4, os.SEEK_CUR)  # secondary Soller slit
+        fh.seek(4, os.SEEK_CUR)  # fixed thin film attachment
+        fh.seek(4, os.SEEK_CUR)  # beta filter
+        fh.seek(4, os.SEEK_CUR)  # secondary monochromator
+        meta_header["ANODE_MATERIAL"] = fh.read(4).decode(CODE)
+        fh.seek(4, os.SEEK_CUR)  # unused
+        meta_header["ALPHA_AVERAGE"] = struct.unpack('d', fh.read(8))[0]
+        meta_header["ALPHA1"] = struct.unpack('d', fh.read(8))[0]
+        meta_header["ALPHA2"] = struct.unpack('d', fh.read(8))[0]
+        meta_header["BETA"] = struct.unpack('d', fh.read(8))[0]
+        meta_header["ALPHA_RATIO"] = struct.unpack('d', fh.read(8))[0]
+        fh.seek(4, os.SEEK_CUR)  # (C4) unit name
+        fh.seek(4, os.SEEK_CUR)  # (R4) intensity beta: a1
+        meta_header["MEASUREMENT TIME"] = struct.unpack('I', fh.read(4))[0]
+        fh.seek(43, os.SEEK_CUR)  # unused
+        fh.seek(1, os.SEEK_CUR)  # hardware dependency...
+        assert (fh.tell() == 712)
+
+        logging.debug("=" * 36)
+        logging.debug("Meta Header has been read.")
+        logging.debug(
+            os.linesep + "".join(
+                ["{0}: {1} {2}".format(i, meta_header[i], os.linesep)
+                 for i in meta_header.keys()]
+            )
+        )
+        logging.debug("=" * 36)
+
+        for i in range(meta_header['RANGE_CNT']):
+            header = {}
+            header_len = struct.unpack('I', fh.read(4))[0]  # address 0
+            assert (header_len == 304)
+            header["STEPS"] = struct.unpack('I', fh.read(4))[0]
+            header["OMEGA"] = struct.unpack('d', fh.read(8))[0]
+            header["2THETA"] = struct.unpack('d', fh.read(8))[0]
+            header["KHI"] = struct.unpack('d', fh.read(8))[0]
+            header["PHI"] = struct.unpack('d', fh.read(8))[0]
+            header["X"] = struct.unpack('d', fh.read(8))[0]
+            header["Y"] = struct.unpack('d', fh.read(8))[0]
+            header["Z"] = struct.unpack('d', fh.read(8))[0]
+            fh.seek(8, os.SEEK_CUR)  # address 64
+            fh.seek(6, os.SEEK_CUR)  # address 72
+            fh.seek(2, os.SEEK_CUR)  # unused                   # address 78
+            fh.seek(8, os.SEEK_CUR)  # (R8) variable antiscat.  # address 80
+            fh.seek(6, os.SEEK_CUR)  # address 88
+            fh.seek(2, os.SEEK_CUR)  # unused                   # address 94
+            header["DETECTOR"] = struct.unpack('I', fh.read(4))[0]
+            header["HIGH_VOLTAGE"] = struct.unpack('f', fh.read(4))[0]
+            header["AMPLIFIER_GAIN"] = struct.unpack('f', fh.read(4))[0]
+            header["DISCRIMINATOR_1_LOWER_LEVEL"] = struct.unpack('f', fh.read(4))[0]
+            fh.seek(4, os.SEEK_CUR)  # address 112
+            fh.seek(4, os.SEEK_CUR)  # address 116
+            fh.seek(8, os.SEEK_CUR)  # address 120
+            fh.seek(4, os.SEEK_CUR)  # address 128
+            fh.seek(4, os.SEEK_CUR)  # address 132
+            fh.seek(5, os.SEEK_CUR)  # address 136
+            fh.seek(3, os.SEEK_CUR)  # unused                   # address 141
+            header["AU1"] = struct.unpack('d', fh.read(8))[0]
+            header["AU2"] = struct.unpack('d', fh.read(8))[0]
+            header["AU3"] = struct.unpack('d', fh.read(8))[0]
+            header["SCAN_MODE"] = struct.unpack('I', fh.read(4))[0]
+            fh.seek(4, os.SEEK_CUR)  # address 176
+            header["STEP_SIZE"] = struct.unpack('d', fh.read(8))[0]
+            header["STEP_SIZE_B"] = struct.unpack('d', fh.read(8))[0]
+            header["STEP_TIME"] = struct.unpack('f', fh.read(4))[0]
+            header["_STEPPING_DRIVE_CODE"] = struct.unpack('I', fh.read(4))[0]
+            fh.seek(4, os.SEEK_CUR)  # address 204
+            header["ROTATION_SPEED [rpm]"] = struct.unpack('f', fh.read(4))[0]
+            fh.seek(4, os.SEEK_CUR)  # address 212
+            header["TEMP_RATE"] = struct.unpack('f', fh.read(4))[0]
+            header["TEMP_DELAY"] = struct.unpack('f', fh.read(4))[0]
+            fh.seek(4, os.SEEK_CUR)
+            header["GENERATOR_VOLTAGE"] = struct.unpack('f', fh.read(4))[0]
+            header["GENERATOR_CURRENT"] = struct.unpack('f', fh.read(4))[0]
+            fh.seek(4, os.SEEK_CUR)  # address 232
+            fh.seek(4, os.SEEK_CUR)  # unused                  # address 236
+            header["USED_LAMBDA"] = struct.unpack('d', fh.read(8))[0]
+            header['_VARYINGPARAMS'] = struct.unpack('I', fh.read(4))[0]
+            header['_DATUM_LENGTH'] = struct.unpack('I', fh.read(4))[0]
+            supplementary_headers_size = struct.unpack('I', fh.read(4))[0]
+            fh.seek(4, os.SEEK_CUR)  # address 260
+            fh.seek(4, os.SEEK_CUR)  # address 264
+            fh.seek(4, os.SEEK_CUR)  # unused                 # address 268
+            fh.seek(8, os.SEEK_CUR)  # address 272
+            fh.seek(24, os.SEEK_CUR)  # unused                 # address 280
+            if supplementary_headers_size:
+                fh.seek(supplementary_headers_size, os.SEEK_CUR)
+            intensity = struct.unpack(
+                str(header["STEPS"])+"f", fh.read(4*header["STEPS"])
+            )
+
+        return meta_header,
 
 
 class Metadata(object):
@@ -217,7 +362,7 @@ class Dataset(Metadata):
 
         for i in range(len(self.scans)):
             if print_header:
-                out.write("\n; ( Data for Range number {0:d} )\n".format(i))
+                out.write("\n  ( Data for Range number {0:d} )\n".format(i))
             out.write(self.scans[i].pretty_format(print_header) + "\n")
             pass
 
@@ -271,7 +416,7 @@ class DatasetDiffractPlusV3(Dataset):
     #
     # _header_desc_tbl
     #
-    # range header is the first few bytes of each range block ; this
+    # range header is the first few bytes of each range block   this
     # length is variable and its length is given in the first byte
     #
     # todo : how to tell what the scan type is ?, e.g. omg-2th, omg,
@@ -465,3 +610,16 @@ class DatasetDiffractPlusV3(Dataset):
             self.scans.append(scn)
             range_start = f.tell()
             # end of range
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        # filename=os.path.join(
+        #     os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
+        level=logging.DEBUG,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+    )
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    raw_file = RawFile()
+    raw_file.get_file(os.path.join("..", "test", "test_data", "002.raw"))
+    raw_file.parser_file()

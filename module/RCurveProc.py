@@ -17,6 +17,7 @@ class RCurveProc(OneDProcModule):
         super(RCurveProc, self).__init__()
         self.param = {
             'Thickness of sample': 900,
+            'CHI': 11.24,
             'H': 1,
             'K': 1,
             'L': 1,
@@ -282,13 +283,21 @@ class RCurveProc(OneDProcModule):
         sub_layout.addWidget(q_line)
         q_t_wd.setLayout(sub_layout)
 
+        chi_wd = QtWidgets.QWidget()
+        sub_layout = QtWidgets.QVBoxLayout()
+        chi_line_edit = QtWidgets.QLineEdit(str(self.param['CHI']))
+        chi_line_edit.textChanged.connect(partial(self._upt_param, 'CHI'))
+        sub_layout.addWidget(QtWidgets.QLabel("CHI:"))
+        sub_layout.addWidget(chi_line_edit)
+        chi_wd.setLayout(sub_layout)
+
         q_push_button = QtWidgets.QPushButton("OK")
         q_push_button.clicked.connect(q_dialog.close)
 
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(q_t_wd)
+        layout.addWidget(chi_wd)
         layout.addWidget(self.q_line_wd)
-        layout.addWidget(self.hkl_wd)
         layout.addWidget(q_push_button)
 
         q_dialog.setLayout(layout)
