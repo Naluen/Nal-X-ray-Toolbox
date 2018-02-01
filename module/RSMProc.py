@@ -3,8 +3,8 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
-from matplotlib.backends.backend_qt5agg import (
-    FigureCanvasQTAgg as FigureCanvas)
+from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg as
+                                                FigureCanvas)
 from matplotlib.colors import LogNorm
 
 from module.Module import ProcModule
@@ -12,8 +12,8 @@ from module.Module import ProcModule
 LAMBDA = 0.154055911278
 LATTICE_GAP = 0.54505
 
-
 # TODO Select area.
+
 
 def _bragg_angle_cal(lattice, xtal_hkl):
     """
@@ -24,10 +24,8 @@ def _bragg_angle_cal(lattice, xtal_hkl):
     >>> assert abs(hkl_d[(0, 0, 2)]-32.8) < 0.1
     """
 
-    rms = lambda x: np.sqrt(np.sum(np.asarray(x) ** 2))
-    bragg_angle = np.arcsin(
-        LAMBDA / (2 * lattice / rms(xtal_hkl))
-    )
+    rms = lambda x: np.sqrt(np.sum(np.asarray(x)**2))
+    bragg_angle = np.arcsin(LAMBDA / (2 * lattice / rms(xtal_hkl)))
 
     return np.rad2deg(bragg_angle) * 2
 
@@ -55,8 +53,8 @@ class RSMProc(ProcModule):
     # Build Canvas
     def _build_plot_widget(self):
         self.canvas = FigureCanvas(self.figure)
-        self.canvas.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.canvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                  QtWidgets.QSizePolicy.Expanding)
 
         self._toolbar = QtWidgets.QToolBar()
         self._toolbar.setMinimumHeight(30)
@@ -90,8 +88,12 @@ class RSMProc(ProcModule):
         w, h = int_data.shape
 
         tth = np.tile(self.attr['two_theta_data'], (w, 1))
-        phi = self.attr['phi_data'][0]
+
         omega = self.attr['omega_data']
+        try:
+            phi = self.attr['phi_data'][0]
+        except TypeError:
+            phi = self.attr['Phi']
 
         hkl_l = [(0, 0, 2), (0, 0, 4), (0, 0, 6), (2, 2, -4)]
         hkl_d = {i: _bragg_angle_cal(LATTICE_GAP, i) for i in hkl_l}
@@ -114,27 +116,27 @@ class RSMProc(ProcModule):
         xi = np.linspace(s_x.min(), s_x.max(), w)
         yi = np.linspace(s_z.min(), s_z.max(), h)
         xx, yy = np.meshgrid(xi, yi)
-        zi = griddata((s_x.flatten(), s_z.flatten()), int_data.flatten(),
-                      (xx, yy), method='linear')
+        zi = griddata(
+            (s_x.flatten(), s_z.flatten()),
+            int_data.flatten(), (xx, yy),
+            method='linear')
 
         self.figure.clf()
         im = plt.imshow(
             zi,
             origin='lower',
             norm=LogNorm(vmin=int_data.min() + 1, vmax=int_data.max()),
-            extent=[s_x.min(), s_x.max(), s_z.min(), s_z.max()]
-        )
+            extent=[s_x.min(), s_x.max(),
+                    s_z.min(), s_z.max()])
 
         cb = plt.colorbar(
             im,
             format="%.e",
             extend='max',
-            ticks=np.logspace(
-                1, np.log10(int_data.max()), np.log10(int_data.max())),
+            ticks=np.logspace(1, np.log10(int_data.max()),
+                              np.log10(int_data.max())),
         )
-        cb.set_label(
-            r'$Intensity\ (Counts\ per\ second)$',
-            fontsize=12)
+        cb.set_label(r'$Intensity\ (Counts\ per\ second)$', fontsize=12)
 
         self._data_dict = {}
         self._data_dict['xi'] = xi
