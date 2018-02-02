@@ -1,11 +1,12 @@
 import logging
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
-from PyQt5 import QtCore, QtWidgets, QtGui
-from matplotlib.backends.backend_qt5agg import (FigureCanvasQTAgg as
-                                                FigureCanvas)
+from matplotlib.backends.backend_qt5agg import \
+    FigureCanvasQTAgg as FigureCanvas
 from matplotlib.colors import LogNorm
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 from module.Module import ProcModule
 
@@ -83,35 +84,52 @@ class RSMProc(ProcModule):
 
     @QtCore.pyqtSlot(bool)
     def _repaint(self, message):
+        # ====================================================================
+        logging.debug("=" * 36)
+        logging.debug("Scan Header has been read.")
+        logging.debug(os.linesep + "".join([
+            "{0}: {1} {2}".format(k, v, os.linesep)
+            for k, v in self.attr.items()
+        ]))
+        # ====================================================================
+
         from scipy.interpolate import griddata
         int_data = self.data
         w, h = int_data.shape
 
-        tth = np.tile(self.attr['two_theta_data'], (w, 1))
+        try:
+            tth = self.attr['two_theta_data'][0]
+        except KeyError:
+            tth = self.attr.get('TWOTHETA')
 
-        omega = self.attr['omega_data']
+        try:
+            omega = self.attr.get('OMEGA')
+        except KeyError:
+            self.attr['omega_data']
         try:
             phi = self.attr['phi_data'][0]
-        except TypeError:
-            phi = self.attr['Phi']
+        except KeyError:
+            phi = self.attr['PHI']
 
         hkl_l = [(0, 0, 2), (0, 0, 4), (0, 0, 6), (2, 2, -4)]
         hkl_d = {i: _bragg_angle_cal(LATTICE_GAP, i) for i in hkl_l}
-        hkl = [i for i in hkl_d if hkl_d[i] - 3 <= tth[0][0] <= hkl_d[i] + 3]
+        logging.debug(tth)
+        hkl = [i for i in hkl_d if abs(tth[0] - hkl_d[i]) <= 3]
         if len(hkl) is not 1:
             logging.error('HKL Value Error')
             hkl = [0, 0, 0]
         else:
             hkl = hkl[0]
-        self.attr['hkl'] = np.asarray(hkl)
+        self.attr['HKL'] = np.asarray(hkl)
+
+        tth, omega = np.meshgrid(tth, omega)
 
         s_mod = 2. / LAMBDA * np.sin(np.radians(tth / 2.))
         psi = omega - tth / 2.
         s_x = s_mod * np.sin(np.radians(psi))
         s_z = s_mod * np.cos(np.radians(psi))
 
-        if (phi > -2) and (phi < 2):
-            s_x = -s_x
+        s_x = -s_x if abs(phi) < 2 else s_x
 
         xi = np.linspace(s_x.min(), s_x.max(), w)
         yi = np.linspace(s_z.min(), s_z.max(), h)
@@ -149,7 +167,7 @@ class RSMProc(ProcModule):
     def _configuration(self):
         widget = self._build_widget()
         self.q_tab_widget = QtWidgets.QTabWidget()
-        self.q_tab_widget.addTab(widget, self.attr['Type'])
+        self.q_tab_widget.addTab(widget, self.attr['TYPE'])
         self.q_tab_widget.closeEvent = self._close_configuration
         self.q_tab_widget.show()
 

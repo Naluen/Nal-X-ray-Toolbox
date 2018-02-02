@@ -83,59 +83,50 @@ class RawFile(FileModule):
 
         step_code = scans[0]._STEPPING_DRIVE_CODE
 
-        if step_code is 2 and len(scans) == 1:
-            attr['Type'] = "SingleScan"
-            attr['StepTime'] = float(scans[0].STEPTIME)
-            attr['TwoTheta'] = np.linspace(
-                float(scans[0].TWOTHETA),
-                float(scans[0].STEP_SIZE) * int(scans[0].STEPS),
-                int(scans[0].STEPS))
-
-            data = np.vstack(attr['TwoTheta'],
-                             np.asarray(scans[0].intensity / attr['StepTime']))
-        elif step_code is 3 and len(scans) == 1:
-            attr['Type'] = "Rocking Curve"
-            attr['StepTime'] = float(scans[0].STEPTIME)
-            attr['Omega'] = np.linspace(
-                float(scans[0].OMEGA),
-                float(scans[0].STEP_SIZE) * int(scans[0].STEPS),
-                int(scans[0].STEPS))
-
-            data = np.vstack(attr['Omega'],
-                             np.asarray(scans[0].intensity / attr['StepTime']))
         if step_code in (129, 130):
+            attr['STEPS'] = int(scans[0].STEPS)
+            attr['STEP_SIZE'] = float(scans[0].STEP_SIZE)
+            theta_start = float(scans[0].TWOTHETA)
             if not all(i.PHI == scans[0].PHI for i in scans):
                 raise Exception("The Phi is inconsistent.")
             if not all(i.TWOTHETA == scans[0].TWOTHETA for i in scans):
-                raise Exception("The Two Theta is inconsistent.")
+                logging.error("The Two Theta is inconsistent.\n %s" %
+                              [i.TWOTHETA for i in scans])
+                if 1:
+                    scans = [
+                        i for i in scans if i.TWOTHETA == scans[0].TWOTHETA
+                    ]
+                    attr['STEPS'] = len(scans)
             if not all(i.STEP_SIZE == scans[0].STEP_SIZE for i in scans):
                 raise Exception("The Step Size is inconsistent.")
             if not all(i.STEPS == scans[0].STEPS for i in scans):
                 raise Exception("The Steps is inconsistent.")
 
-            attr['Type'] = 'RSMPlot'
-            attr['Phi'] = float(scans[0].PHI)
-            attr['Omega'] = np.asarray([float(i.OMEGA) for i in scans])
-            attr['TwoTheta'] = np.linspace(
-                float(scans[0].TWOTHETA),
-                float(scans[0].STEP_SIZE) * int(scans[0].STEPS),
-                int(scans[0].STEPS))
+            attr['TYPE'] = 'RSMPlot'
+            attr['PHI'] = float(scans[0].PHI)
+            attr['STEPPING_DRIVE1'] = 'OMEGA'
+            attr['OMEGA'] = np.asarray([float(i.OMEGA) for i in scans])
+            attr['TWOTHETA'] = np.linspace(
+                theta_start, theta_start + attr['STEP_SIZE'] * attr['STEPS'],
+                attr['STEPS'])
             data = np.asanyarray([i.intensity for i in scans])
         elif step_code is 13:
             raise Exception("Unknown Scan Type")
         else:
             if len(scans) == 1:
                 drv = TBL_STEPPING_DRIVERS[step_code][1]
-                attr['StepTime'] = float(scans[0].STEPTIME)
+                attr['STEPTIME'] = float(scans[0].STEPTIME)
                 attr['STEPPING_DRIVE1'] = drv
+                attr['TYPE'] = 'SINGLESCAN'
 
                 drv_x = np.linspace(
                     float(scans[0].header[drv]),
+                    float(scans[0].header[drv]) +
                     float(scans[0].STEP_SIZE) * int(scans[0].STEPS),
                     int(scans[0].STEPS))
                 data = np.vstack(drv_x,
                                  np.asarray(
-                                     scans[0].intensity / attr['StepTime']))
+                                     scans[0].intensity / attr['STEPTIME']))
             else:
                 if not all(i.STEP_SIZE == scans[0].STEP_SIZE for i in scans):
                     raise Exception("The Step Size is inconsistent.")
@@ -150,45 +141,17 @@ class RawFile(FileModule):
                         attr['STEPPING_DRIVE2'] = scans[0]['STEPPING_DRIVE']
                         break
 
-                if ((attr['STEPPING_DRIVE1'] == 'KHI')
-                        and (attr['_STEPPING_DRIVE2'] == 'PHI')):
-                    attr['Drv_1'] = np.asarray([
-                        float(i.header[attr['STEPPING_DRIVE1']]) for i in scans
-                    ])
-                    attr['Drv_2'] = np.linspace(
-                        float(scans[0].header[attr['_STEPPING_DRIVE2']]),
-                        float(scans[0].STEP_SIZE) * int(scans[0].STEPS),
-                        int(scans[0].STEPS))
-                    attr['Vit_Angle'] = float(
-                        scans[0].STEP_SIZE/scans[0].STEPTIME)
-                    data = np.asanyarray([i.intensity for i in scans])
-
-        # if attr['_TYPE'] == 'TwoDPlot':
-        #     if ((attr['_STEPPING_DRIVE1'] == 'KHI')
-        #             and (attr['_STEPPING_DRIVE2'] == 'PHI')):
-        #         khi_data = self.one_d_data(data_list, '_KHI')
-        #         attr['khi_min'] = np.int16(khi_data[0][0])
-        #         attr['khi_max'] = np.int16(khi_data[-1][0])
-        #         phi_data = self.two_d_data(data_list, 0)
-        #         attr['phi_min'] = np.int16(phi_data[0, :][0])
-        #         attr['phi_max'] = np.int16(phi_data[0, :][-1])
-
-        #         data = self.two_d_data(data_list, 1)
-        #         size = self.one_d_data(data_list, '_STEP_SIZE')[0][0]
-        #         tm = self.one_d_data(data_list, '_STEPTIME')[0][0]
-        #         attr['vit_ang'] = np.float32(size / tm)
-        #         attr['Type'] = "PolesFigure"
-
-        # elif attr['_TYPE'] == 'SingleScanPlot':
-        #     attr['_STEP_SIZE'] = self.one_d_data(data_list, '_STEP_SIZE')[0][0]
-        #     attr['_STEPTIME'] = self.one_d_data(data_list, '_STEPTIME')[0][0]
-        #     data = np.vstack(
-        #         (self.two_d_data(data_list, 0),
-        #          self.two_d_data(data_list, 1) / attr['_STEPTIME']))
-        #     if attr['_SCAN_TYPE'] == 'detector scan':
-        #         attr['Type'] = "SingleScan"
-        #     elif attr['_SCAN_TYPE'] == 'rocking curve':
-        #         attr['Type'] = "RockingCurve"
+                attr['DRV_1'] = np.asarray(
+                    [float(i.header[attr['STEPPING_DRIVE1']]) for i in scans])
+                attr['DRV_2'] = np.linspace(
+                    float(scans[0].header[attr['_STEPPING_DRIVE2']]),
+                    float(scans[0].header[attr['_STEPPING_DRIVE2']]) +
+                    float(scans[0].STEP_SIZE) * int(scans[0].STEPS),
+                    int(scans[0].STEPS))
+                attr['TYPE'] = 'TwoDPlot'
+                attr['VIT_ANGLE'] = float(
+                    scans[0].STEP_SIZE / scans[0].STEPTIME)
+                data = np.asanyarray([i.intensity for i in scans])
 
         return data, attr
 
@@ -209,14 +172,14 @@ class RawFile(FileModule):
     @staticmethod
     def load_version1(file_handle):
         """Parser version.RAW ."""
-        meta_header = {'FORMAT VERSION': "v1"}
+        meta_header = {'FORMAT_VERSION': "v1"}
 
         return meta_header,
 
     @staticmethod
     def load_version2(file_handle):
         """Parser version.RAW2."""
-        meta_header = {'FORMAT VERSION': "v2"}
+        meta_header = {'FORMAT_VERSION': "v2"}
 
         return meta_header,
 
@@ -225,7 +188,7 @@ class RawFile(FileModule):
         """Parser version.RAW1.01."""
         file_handle.seek(8, os.SEEK_SET)
         meta_header = {}
-        meta_header['FORMAT VERSION'] = "v3"
+        meta_header['FORMAT_VERSION'] = "v3"
         meta_header['_FILE_STATUS_CODE'] = struct.unpack(
             'I', file_handle.read(4))[0]
         meta_header['RANGE_CNT'] = struct.unpack('I', file_handle.read(4))[0]
@@ -266,25 +229,11 @@ class RawFile(FileModule):
         file_handle.seek(43, os.SEEK_CUR)  # unused
         file_handle.seek(1, os.SEEK_CUR)  # hardware dependency...
         assert file_handle.tell() == 712
-        # ====================================================================
-        logging.debug("=" * 36)
-        logging.debug("Meta Header has been read.")
-        logging.debug(os.linesep + "".join([
-            "{0}: {1} {2}".format(k, v, os.linesep)
-            for k, v in meta_header.items()
-        ]))
-        # ====================================================================
+
         scans = [
             ScanBulk(file_handle) for _ in range(meta_header['RANGE_CNT'])
         ]
-        # ====================================================================
-        logging.debug("=" * 36)
-        logging.debug("Scan Header has been read.")
-        logging.debug(os.linesep + "".join([
-            "{0}: {1} {2}".format(k, v, os.linesep)
-            for k, v in scans[0].header.items()
-        ]))
-        # ====================================================================
+
         return meta_header, scans
 
 
@@ -297,7 +246,7 @@ class ScanBulk(object):
         assert header_len == 304
         header["STEPS"] = struct.unpack('I', file_handle.read(4))[0]
         header["OMEGA"] = struct.unpack('d', file_handle.read(8))[0]
-        header["2THETA"] = struct.unpack('d', file_handle.read(8))[0]
+        header["TWOTHETA"] = struct.unpack('d', file_handle.read(8))[0]
         header["KHI"] = struct.unpack('d', file_handle.read(8))[0]
         header["PHI"] = struct.unpack('d', file_handle.read(8))[0]
         header["X"] = struct.unpack('d', file_handle.read(8))[0]
@@ -376,4 +325,4 @@ if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     RAW_FILE = RawFile()
     RAW_FILE.get_file(os.path.join("..", "test", "test_data", "002.raw"))
-    DATA, ATTR = RAW_FILE.parser_file()
+    META, SCANS = RAW_FILE.parser_file()
