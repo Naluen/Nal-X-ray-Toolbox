@@ -29,7 +29,7 @@ class FltFile(FileModule):
                     pass
         return scan_dict
 
-    def file2narray(self):
+    def get_data(self):
         logging.debug("Transform data to ndarray...")
         with open(self.file, 'rb') as fp:
             try_head = fp.read(500)

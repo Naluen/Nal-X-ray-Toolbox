@@ -9,8 +9,9 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas)
 from matplotlib.colors import LogNorm
 
-from module.Module import ProcModule
+from module.Module import ProcModule, BasicToolBar
 from module.RawFile import RawFile
+from module.OneDScanProc import OneDScanProc
 
 LAMBDA = 0.154055911278
 
@@ -32,24 +33,24 @@ def _bragg_angle_cal(lattice, xtal_hkl):
     return np.rad2deg(bragg_angle) * 2
 
 
-class PfProc(ProcModule):
+class PolesFigureProc(ProcModule):
     refresh_canvas = QtCore.pyqtSignal(bool)
 
     def __init__(self):
-        super(PfProc, self).__init__()
+        super(PolesFigureProc, self).__init__()
+
+        self.figure = plt.figure()
 
         self.param = OrderedDict([
-            ('Advanced Selection', False),
-            ('v_min', 10),
-            ('v_max', 1000),
-            ('Thickness of sample', 900),
-            ('Square Sx', 16),
-            ('Square Sy', 16),
-            ('Phi offset', 0),
-            ('Beam Int', 1),
+            ('ADVANCED_SELECTION', False),
+            ('V_MIN', "10"),
+            ('V_MAX', "1000"),
+            ('THICKNESS', "900"),
+            ('SQUARE_SX', "16"),
+            ('SQUARE_SY', "16"),
+            ('PHI_OFFSET', "0"),
+            ('BEAM_INT', "100000"),
         ])
-
-        self._build_intensity_input_linedit()
 
         self._build_plot_widget()
 
@@ -60,6 +61,185 @@ class PfProc(ProcModule):
     @property
     def supp_type(self):
         return "PolesFigure",
+
+    def _build_plot_widget(self):
+        self.canvas = FigureCanvas(self.figure)
+        self.canvas.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+
+        self._toolbar = BasicToolBar(self)
+        self._toolbar.addAction(
+            QtGui.QIcon(QtGui.QPixmap('icons/search.png')),
+            "Auto search peak...",
+            self._pk_search,
+        )
+        self._toolbar.addAction(
+            QtGui.QIcon(QtGui.QPixmap('icons/vertical-alignment.png')),
+            "Horizontal align...",
+            self._int2fraction,
+        )
+
+        self.plot_widget = QtWidgets.QWidget()
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addWidget(self._toolbar)
+        self.layout.addWidget(self.canvas)
+        self.plot_widget.setLayout(self.layout)
+        self.plot_widget.resize(1000, 400)
+        self.plot_widget.closeEvent = self.closeEvent
+
+        self.refresh_canvas.connect(self._repaint)
+
+    def _build_config_widget(self):
+        config_widget = QtWidgets.QWidget(self.plot_widget)
+        config_layout = QtWidgets.QVBoxLayout()
+        config_widget.setLayout(config_layout)
+
+        advanced_selection_q_radio_button = QtWidgets.QRadioButton(
+            "Use Advanced Selection")
+        advanced_selection_q_radio_button.setChecked(
+            self.param["ADVANCED_SELECTION"])
+        advanced_selection_q_radio_button.toggled.connect(
+            partial(self._upt_param, "ADVANCED_SELECTION"))
+
+        intensity_input_layout = IntensityInputWidget(self.param)
+
+        v_min_input_layout = QtWidgets.QVBoxLayout()
+        v_min_input_layout.addWidget(QtWidgets.QLabel('Norm Minimum:'))
+        v_min_line_edit = QtWidgets.QLineEdit()
+        v_min_line_edit.setText(self.param['V_MIN'])
+        v_min_line_edit.setInputMask("999999999")
+        v_min_line_edit.textChanged.connect(
+            partial(self._upt_param, "V_MIN")
+        )
+        v_min_input_layout.addWidget(v_min_line_edit)
+
+        v_max_input_layout = QtWidgets.QVBoxLayout()
+        v_max_input_layout.addWidget(QtWidgets.QLabel('Norm Maximum:'))
+        v_max_line_edit = QtWidgets.QLineEdit()
+        v_max_line_edit.setText(self.param['V_MAX'])
+        v_max_line_edit.setInputMask("999999999")
+        v_max_line_edit.textChanged.connect(
+            partial(self._upt_param, "V_MAX")
+        )
+        v_max_input_layout.addWidget(v_max_line_edit)
+
+        thickness_input_layout = QtWidgets.QVBoxLayout()
+        thickness_input_layout.addWidget(
+            QtWidgets.QLabel('Thickness of Sample(\u212B):'))
+        thickness_line_edit = QtWidgets.QLineEdit()
+        thickness_line_edit.setText(self.param['THICKNESS'])
+        thickness_line_edit.setInputMask("999999999")
+        thickness_line_edit.textChanged.connect(
+            partial(self._upt_param, "THICKNESS")
+        )
+        thickness_input_layout.addWidget(thickness_line_edit)
+
+        square_sx_input_layout = QtWidgets.QVBoxLayout()
+        square_sx_input_layout.addWidget(
+            QtWidgets.QLabel('Square Sx:'))
+        square_sx_line_edit = QtWidgets.QLineEdit()
+        square_sx_line_edit.setText(self.param['SQUARE_SX'])
+        square_sx_line_edit.setInputMask("99")
+        square_sx_line_edit.textChanged.connect(
+            partial(self._upt_param, "SQUARE_SX")
+        )
+        square_sx_input_layout.addWidget(square_sx_line_edit)
+
+        square_sy_input_layout = QtWidgets.QVBoxLayout()
+        square_sy_input_layout.addWidget(
+            QtWidgets.QLabel('Square Sy:'))
+        square_sy_line_edit = QtWidgets.QLineEdit()
+        square_sy_line_edit.setText(self.param['SQUARE_SY'])
+        square_sy_line_edit.setInputMask("99")
+        square_sy_line_edit.textChanged.connect(
+            partial(self._upt_param, "SQUARE_SY")
+        )
+        square_sy_input_layout.addWidget(square_sy_line_edit)
+
+        phi_offset_input_layout = QtWidgets.QVBoxLayout()
+        phi_offset_input_layout.addWidget(
+            QtWidgets.QLabel('Square Sx:'))
+        phi_offset_line_edit = QtWidgets.QLineEdit()
+        phi_offset_line_edit.setText(self.param['PHI_OFFSET'])
+        phi_offset_line_edit.setValidator(
+            QtGui.QIntValidator(0, 360, phi_offset_line_edit))
+        phi_offset_line_edit.textChanged.connect(
+            partial(self._upt_param, 'PHI_OFFSET')
+        )
+        phi_offset_input_layout.addWidget(phi_offset_line_edit)
+
+
+        config_layout.addWidget(advanced_selection_q_radio_button)
+        config_layout.addLayout(intensity_input_layout)
+        config_layout.addLayout(v_min_input_layout)
+        config_layout.addLayout(v_max_input_layout)
+        config_layout.addLayout(thickness_input_layout)
+        config_layout.addLayout(square_sx_input_layout)
+        config_layout.addLayout(square_sy_input_layout)
+        config_layout.addLayout(phi_offset_input_layout)
+
+        return config_widget
+
+    def _configuration(self):
+
+        self._configuration_wd = self._build_config_widget()
+
+        self.q_tab_widget = QtWidgets.QTabWidget()
+        self.q_tab_widget.addTab(self._configuration_wd, "Poles Figure")
+        self.q_tab_widget.closeEvent = self._close_configuration
+        self.q_tab_widget.show()
+
+    def _export_data(self):
+        pass
+
+    @QtCore.pyqtSlot(bool)
+    def _repaint(self, message):
+        self.figure.clf()
+        try:
+            v_max = self.attr['V_MAX']
+            v_min = self.attr['V_MIN']
+        except KeyError:
+            v_min = 10
+            v_max = 10000
+        try:
+            ver_min = int(self.attr['DRV_2'].min())
+            ver_max = int(self.attr['DRV_2'].max())
+            hor_min = int(self.attr['DRV_1'].min())
+            hor_max = int(self.attr['DRV_1'].max())
+        except KeyError:
+            ver_min = np.int64(self.attr['phi_min'])
+            ver_max = np.int64(self.attr['phi_max'])
+            hor_min = np.int64(self.attr['khi_min'])
+            hor_max = np.int64(self.attr['khi_max'])
+        plt.figure(self.figure.number)
+        ax2d = plt.gca()
+        im = ax2d.imshow(
+            self.data,
+            origin="lower",
+            norm=LogNorm(vmin=v_min, vmax=v_max),
+            extent=[ver_min, ver_max, hor_min, hor_max]
+        )
+
+        ax2d.tick_params(axis='both', which='major', labelsize=10)
+        plt.colorbar(
+            im,
+            # fraction=0.012,
+            # pad=0.04,
+            format="%.e", extend='max',
+            ticks=np.logspace(1, np.log10(v_max), np.log10(v_max)),
+            orientation='horizontal',
+        )
+
+        self.canvas.draw()
+
+    # External methods.
+    def plot(self):
+        """Plot Image."""
+        self._repaint("")
+
+        self.plot_widget.show()
+
+        return self.plot_widget
 
     @staticmethod
     def i_theory(i_0, v, theta, omega, th, index):
@@ -86,131 +266,6 @@ class PfProc(ProcModule):
         i_theo = i_0 * c_0 * c_1 * c_2 * index / (v * U)
 
         return i_theo
-
-    # ========Intensity input line edit.=======================================
-    set_q_int_line_v = QtCore.pyqtSignal(int)
-
-    def _build_intensity_input_linedit(self):
-        self.q_line_wd = QtWidgets.QWidget()
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(QtWidgets.QLabel("Beam Intensity"))
-        self.q_int_line = QtWidgets.QLineEdit(str(self.param['Beam Int']))
-        self.q_int_line.textChanged.connect(
-            partial(self.param.__setitem__, 'Beam Int'))
-        q_int_button = self.q_int_line.addAction(
-            QtGui.QIcon(QtGui.QPixmap('icons/more.png')),
-            QtWidgets.QLineEdit.TrailingPosition)
-        q_int_button.triggered.connect(self._get_bm_int)
-        layout.addWidget(self.q_int_line)
-        self.q_line_wd.setLayout(layout)
-        self.set_q_int_line_v.connect(self._set_q_int_line)
-
-    @QtCore.pyqtSlot(int)
-    def _set_q_int_line(self, msg):
-        self.q_int_line.setText(str(msg))
-        self.param['Beam Int'] = int(msg)
-
-    def _get_bm_int(self):
-        def file2int(i):
-            ins = RawFile()
-            ins.get_file(i)
-            data, _ = ins.file2narray()
-            inte = np.max(data[1, :]) * 8940
-            del ins
-            return inte
-
-        file_names = QtWidgets.QFileDialog.getOpenFileNames(
-            caption='Open intensity file...',
-            directory="/",
-            filter="Raw file (*.raw)"
-        )
-        source_file_list = file_names[0]
-        if not source_file_list:
-            return
-        int_l = [file2int(str(i)) for i in source_file_list]
-        beam_int = np.mean(np.asarray(int_l))
-        self.set_q_int_line_v.emit(beam_int)
-
-    # ========Main Canvas======================================================
-    def _build_plot_widget(self):
-        self.canvas = FigureCanvas(self.figure)
-        self.canvas.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-
-        self._toolbar = QtWidgets.QToolBar()
-        self._toolbar.setMinimumHeight(30)
-
-        self._toolbar.addAction(
-            QtGui.QIcon(QtGui.QPixmap('icons/save.png')),
-            "Save Image...",
-            self._save,
-        )
-        self._toolbar.addAction(
-            QtGui.QIcon(QtGui.QPixmap('icons/settings.png')),
-            "Configuration...",
-            self._configuration,
-        )
-        self._toolbar.addSeparator()
-        self._toolbar.addAction(
-            QtGui.QIcon(QtGui.QPixmap('icons/search.png')),
-            "Auto search peak...",
-            self._pk_search,
-        )
-        self._toolbar.addAction(
-            QtGui.QIcon(QtGui.QPixmap('icons/vertical-alignment.png')),
-            "Horizontal align...",
-            self._int2fraction,
-        )
-
-        self.plot_widget = QtWidgets.QWidget()
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.addWidget(self._toolbar)
-        self.layout.addWidget(self.canvas)
-        self.plot_widget.setLayout(self.layout)
-        self.plot_widget.resize(1000, 400)
-        self.plot_widget.closeEvent = self.closeEvent
-
-        self.refresh_canvas.connect(self._repaint)
-
-    @QtCore.pyqtSlot(bool)
-    def _repaint(self, message):
-        self.figure.clf()
-        v_max = (
-            int(self.attr['v_max'])
-            if ('v_max' in self.attr and self.attr['v_max'])
-            else 10
-        )
-        v_min = (
-            np.int64(self.attr['v_min'])
-            if ('v_min' in self.attr and self.attr['v_min'])
-            else 10000
-        )
-        ver_min = np.int64(self.attr['phi_min'])
-        ver_max = np.int64(self.attr['phi_max'])
-        hor_min = np.int64(self.attr['khi_min'])
-        hor_max = np.int64(self.attr['khi_max'])
-        plt.figure(self.figure.number)
-        ax2d = plt.gca()
-        im = ax2d.imshow(
-            self.data,
-            origin="lower",
-            norm=LogNorm(vmin=v_min, vmax=v_max),
-            extent=[ver_min, ver_max, hor_min, hor_max]
-        )
-
-        ax2d.tick_params(axis='both', which='major', labelsize=10)
-        plt.colorbar(
-            im,
-            # fraction=0.012,
-            # pad=0.04,
-            format="%.e", extend='max',
-            ticks=np.logspace(1, np.log10(v_max), np.log10(v_max)),
-            orientation='horizontal',
-        )
-
-        self.canvas.draw()
-        if 'title' in self.attr:
-            self.plot_widget.setWindowTitle(self.attr['title'])
 
     # Canvas Event
     def _on_press(self, event):
@@ -251,31 +306,17 @@ class PfProc(ProcModule):
             outer_index_list=outer_index_list
         )
 
-    # =======Config Menu=======================================================
-    def _configuration(self):
-        _tmp = self.param['Beam Int']
-        self.param.pop('Beam Int', None)
-
-        self._configuration_wd = self._build_widget()
-
-        self.param['Beam Int'] = _tmp
-
-        self._configuration_wd.layout().addWidget(self.q_line_wd)
-        self.q_tab_widget = QtWidgets.QTabWidget()
-        self.q_tab_widget.addTab(self._configuration_wd, "Poles Figure")
-        self.q_tab_widget.closeEvent = self._close_configuration
-        self.q_tab_widget.show()
-
-    def _close_configuration(self, event):
-        self.refresh_canvas.emit(True)
-        event.accept()
-
     # Peak Detection.
     def _pk_search(self):
-        if self.param['Advanced Selection']:
+        try:
+            is_advanced = self.param['ADVANCED_SELECTION']
+        except KeyError:
+            is_advanced = self.param['Advanced Selection']
+        if is_advanced:
             self.res = self._poly_pk_integrate()
         else:
             self.res = self._sq_pk_integrate()
+
 
     def _poly_pk_integrate(self, repaint=True):
         """
@@ -303,10 +344,16 @@ class PfProc(ProcModule):
         bk_int = bins[np.argmax(n)]
 
         image = img_as_float(self.data)
-        ver_min = np.int64(self.attr['phi_min'])
-        ver_max = np.int64(self.attr['phi_max'])
-        hor_min = np.int64(self.attr['khi_min'])
-        hor_max = np.int64(self.attr['khi_max'])
+        try:
+            ver_min = int(self.attr['DRV_2'].min())
+            ver_max = int(self.attr['DRV_2'].max())
+            hor_min = int(self.attr['DRV_1'].min())
+            hor_max = int(self.attr['DRV_1'].max())
+        except KeyError:
+            ver_min = np.int64(self.attr['phi_min'])
+            ver_max = np.int64(self.attr['phi_max'])
+            hor_min = np.int64(self.attr['khi_min'])
+            hor_max = np.int64(self.attr['khi_max'])
 
         image = gaussian_filter(image, 1, mode='nearest')
 
@@ -370,9 +417,17 @@ class PfProc(ProcModule):
         sq_ins_l: The square plot handle.
         """
         int_data = self.data
-        ver_min = np.int64(self.attr['phi_min'])
-        hor_min = np.int64(self.attr['khi_min'])
-        sq_sz_l = [int(self.param['Square Sx']), int(self.param['Square Sy'])]
+        try:
+            ver_min = np.int64(self.attr['phi_min'])
+            hor_min = np.int64(self.attr['khi_min'])
+            sq_sz_l = [int(self.param['Square Sx']),
+                       int(self.param['Square Sy'])]
+        except KeyError:
+            ver_min = int(self.attr['DRV_2'].min())
+            hor_min = int(self.attr['DRV_1'].min())
+            sq_sz_l = [int(self.param['SQUARE_SX']),
+                       int(self.param['SQUARE_SY'])]
+
 
         if 'outer_index_list' in kwargs:
             ind_l = kwargs['outer_index_list']
@@ -455,8 +510,13 @@ class PfProc(ProcModule):
             return sorted_index_list
 
         int_data_m = self.data
-        ver_min = np.int64(self.attr['phi_min'])
-        hor_min = np.int64(self.attr['khi_min'])
+        try:
+            ver_min = np.int64(self.attr['phi_min'])
+            hor_min = np.int64(self.attr['khi_min'])
+
+        except KeyError:
+            ver_min = int(self.attr['DRV_2'].min())
+            hor_min = int(self.attr['DRV_1'].min())
 
         neighborhood = generate_binary_structure(2, 2)
         for i in range(3):
@@ -504,10 +564,14 @@ class PfProc(ProcModule):
         if not hasattr(self, 'q_dialog'):
             self.q_dialog = self._fraction_calculation_param_dialog()
         self.q_dialog.exec_()
-
-        th = int(self.param['Thickness of sample'])
-        bm_int = int(self.param['Beam Int'])
-        v = abs(float(self.attr['vit_ang']))
+        try:
+            th = int(self.param['Thickness of sample'])
+            bm_int = int(self.param['Beam Int'])
+            v = abs(float(self.attr['vit_ang']))
+        except KeyError:
+            th = int(self.param['THICKNESS'])
+            bm_int = float(self.param['BEAM_INT'])
+            v = abs(float(self.attr['VIT_ANGLE']))
         omega = [
             (np.pi / 2 - np.arccos(
                 np.cos(np.deg2rad(chi[1])) * np.sin(np.deg2rad(14.22))))
@@ -530,21 +594,25 @@ class PfProc(ProcModule):
     def _fraction_calculation_param_dialog(self):
         q_dialog = QtWidgets.QDialog()
 
-        q_t_wd = QtWidgets.QWidget()
-        sub_layout = QtWidgets.QVBoxLayout()
-        q_line = QtWidgets.QLineEdit(str(self.param['Thickness of sample']))
-        q_line.textChanged.connect(
-            partial(self.param.__setitem__, 'Thickness of sample'))
-        sub_layout.addWidget(QtWidgets.QLabel("The thickness of sample:"))
-        sub_layout.addWidget(q_line)
-        q_t_wd.setLayout(sub_layout)
+        thickness_input_layout = QtWidgets.QVBoxLayout()
+        thickness_input_layout.addWidget(
+            QtWidgets.QLabel('Thickness of Sample(\u212B):'))
+        thickness_line_edit = QtWidgets.QLineEdit()
+        thickness_line_edit.setText(self.param['THICKNESS'])
+        thickness_line_edit.setInputMask("999999999")
+        thickness_line_edit.textChanged.connect(
+            partial(self._upt_param, "THICKNESS")
+        )
+        thickness_input_layout.addWidget(thickness_line_edit)
+
+        intensity_input_layout = IntensityInputWidget(self.param)
 
         q_push_button = QtWidgets.QPushButton("OK")
         q_push_button.clicked.connect(q_dialog.close)
 
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(q_t_wd)
-        layout.addWidget(self.q_line_wd)
+        layout.addLayout(thickness_input_layout)
+        layout.addLayout(intensity_input_layout)
         layout.addWidget(q_push_button)
 
         q_dialog.setLayout(layout)
@@ -631,25 +699,6 @@ class PfProc(ProcModule):
         _show_res_wd.resize(w, h)
 
         return _show_res_wd
-
-    # External methods.
-    def plot(self):
-        """Plot Image."""
-        self._repaint("")
-
-        self.plot_widget.show()
-
-        return self.plot_widget
-
-    def set_data(self, data, attr, *args, **kwargs):
-        self.data = data[()]
-        self.attr = dict(attr)
-        for i in self.param:
-            if i in self.attr:
-                self.param[i] = self.attr[i]
-        if 'Beam Int' in self.attr:
-            self.set_q_int_line_v.emit(self.attr['Beam Int'])
-
 
 class Square(object):
     def __init__(
@@ -756,3 +805,45 @@ class Square(object):
             return True
         else:
             return False
+
+class IntensityInputWidget(QtWidgets.QVBoxLayout):
+    def __init__(self, linked_param):
+        super().__init__()
+
+        self._int_line_edit = QtWidgets.QLineEdit(
+            str(linked_param['BEAM_INT']))
+        self._int_line_edit.textChanged.connect(
+            partial(linked_param.__setitem__, 'BEAM_INT'))
+        q_int_button = self._int_line_edit.addAction(
+            QtGui.QIcon(QtGui.QPixmap('icons/more.png')),
+            QtWidgets.QLineEdit.TrailingPosition
+        )
+        q_int_button.triggered.connect(self._get_beam_intensity)
+
+        self.addWidget(QtWidgets.QLabel("Beam Intensity"))
+        self.addWidget(self._int_line_edit)
+
+    def _get_beam_intensity(self):
+        def file2int(i):
+            file_instance = RawFile()
+            file_instance.get_file(i)
+            data, attr = file_instance.get_data()
+            del file_instance
+
+            scan_instance = OneDScanProc()
+            scan_instance.set_data(data, attr)
+            maxmium_int = scan_instance.get_max(mode='direct')
+
+            return maxmium_int
+
+        file_names = QtWidgets.QFileDialog.getOpenFileNames(
+            caption='Open intensity file...',
+            directory="/",
+            filter="Raw file (*.raw)"
+        )
+        source_file_list = file_names[0]
+        if not source_file_list:
+            return
+        int_l = [file2int(str(i)) for i in source_file_list]
+        beam_int = np.mean(np.asarray(int_l))
+        self._int_line_edit.setText(str(beam_int))

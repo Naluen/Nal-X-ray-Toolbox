@@ -26,7 +26,7 @@ class H5File(FileModule):
     def get_file(self, h5_file):
         self.fh = self.h5py.File(h5_file, 'a')
 
-    def file2narray(self):
+    def get_data(self):
         pass
 
     def set_data(self, data, attr, *args, **kwargs):

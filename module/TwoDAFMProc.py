@@ -62,6 +62,33 @@ class TwoDAFMProc(ProcModule):
 
         self.refresh_canvas.connect(self._repaint)
 
+    @QtCore.pyqtSlot(bool)
+    def _repaint(self, message):
+        if "Auto-process" in self.param and self.param["Auto-process"]:
+            self._sub_bk(False)
+            self._align_rows(False)
+        ver_max = self.attr['ScanRangeX'].split()
+        hor_max = self.attr['ScanRangeY'].split()
+        plt.figure(self.figure.number)
+        plt.imshow(
+            self.data,
+            origin='lower',
+            extent=[0, float(ver_max[0]), 0, float(hor_max[0])]
+        )
+        plt.xlabel("X axis({0})".format(ver_max[1]))
+        plt.ylabel("Y axis({0})".format(hor_max[1]))
+        self.canvas.draw()
+
+    def plot(self):
+        """Plot Image."""
+        self.figure.clf()
+        self._repaint("")
+        plt.colorbar()
+
+        self.plot_widget.show()
+
+        return self.plot_widget
+
     def _align_rows(self, repaint=True):
         int_m = self.data
         mask_m = [[np.median(int_m[i])] * len(int_m[0])
@@ -106,38 +133,14 @@ class TwoDAFMProc(ProcModule):
             Z = np.dot(
                 np.c_[np.ones(xx.shape), xx, yy, xx * yy, xx ** 2, yy ** 2],
                 C).reshape(int_m.shape)
+        else:
+            return
 
         # return int_m - Z
         self.data = int_m - Z
         if repaint:
             self.refresh_canvas.emit(True)
 
-    @QtCore.pyqtSlot(bool)
-    def _repaint(self, message):
-        if "Auto-process" in self.param and self.param["Auto-process"]:
-            self._sub_bk(False)
-            self._align_rows(False)
-        ver_max = self.attr['ScanRangeX'].split()
-        hor_max = self.attr['ScanRangeY'].split()
-        plt.figure(self.figure.number)
-        plt.imshow(
-            self.data,
-            origin='lower',
-            extent=[0, float(ver_max[0]), 0, float(hor_max[0])]
-        )
-        plt.xlabel("X axis({0})".format(ver_max[1]))
-        plt.ylabel("Y axis({0})".format(hor_max[1]))
-        self.canvas.draw()
-
-    def plot(self):
-        """Plot Image."""
-        self.figure.clf()
-        self._repaint("")
-        plt.colorbar()
-
-        self.plot_widget.show()
-
-        return self.plot_widget
 
     def _configuration(self):
         widget = self._build_widget()
@@ -145,10 +148,6 @@ class TwoDAFMProc(ProcModule):
         self.q_tab_widget.addTab(widget, "TwoD AFM")
         self.q_tab_widget.closeEvent = self._close_configuration
         self.q_tab_widget.show()
-
-    def _close_configuration(self, event):
-        self.refresh_canvas.emit(True)
-        event.accept()
 
     def closeEvent(self, event):
         self.attr.update(self.param)

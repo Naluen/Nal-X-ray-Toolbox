@@ -408,7 +408,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
         logging.debug("Recording data to h5 file...")
         h5_path = self._item2h5(self.ui.treeWidget.currentItem())
-        data, attr, *_ = reader.file2narray()
+        data, attr, *_ = reader.get_data()
         if "Type" not in attr:
             self._error = QtWidgets.QErrorMessage(self)
             self._error.setWindowModality(QtCore.Qt.WindowModal)

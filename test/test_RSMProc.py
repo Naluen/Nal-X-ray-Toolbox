@@ -19,7 +19,7 @@ class TestRMSProc(TestCase):
         raw_file = RawFile()
         raw_file.get_file(os.path.join("test_data", "002.raw"))
 
-        data, attr = raw_file.file2narray()
+        data, attr = raw_file.get_data()
         proc = RSMProc()
         proc.set_data(data, attr)
         proc.plot()
