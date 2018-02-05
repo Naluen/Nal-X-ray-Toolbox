@@ -45,26 +45,6 @@ class RawFile(FileModule):
     def supp_type(self):
         return ".raw",
 
-    @staticmethod
-    def two_d_data(data_list, index):
-        data = [[
-            float(j.split('\t')[index]) for j in value
-            if (re.match('\d', j) or j.startswith("-"))
-        ] for value in data_list[1:]]
-        i_1 = data[0]
-        for i in range(len(data)):
-            if len(data[i]) < len(i_1):
-                data[i] = i_1
-
-        return np.asanyarray(data)
-
-    @staticmethod
-    def one_d_data(data_list, key_word):
-        data = np.asarray(
-            [[float(j.split('=')[1]) for j in value if j.startswith(key_word)]
-             for value in data_list[1:]])
-        return data
-
     def get_data(self):
         logging.debug("Transform .raw file data to ndarray...")
 
@@ -124,7 +104,8 @@ class RawFile(FileModule):
                 drv = TBL_STEPPING_DRIVERS[step_code][1]
                 attr['STEP_TIME'] = float(scans[0].STEP_TIME)
                 attr['STEPPING_DRIVE1'] = drv
-                attr['TYPE'] = 'SINGLESCAN'
+                attr['STEP_SIZE'] = float(scans[0].STEP_SIZE)
+                attr['TYPE'] = 'SingleScan'
 
                 drv_x = np.linspace(
                     float(scans[0].header[drv]),
@@ -134,6 +115,9 @@ class RawFile(FileModule):
                 data = np.vstack(
                     (drv_x, np.asarray(scans[0].intensity) / attr['STEP_TIME'])
                 )
+
+                if step_code is 3:
+                    attr['TYPE'] = "RockingCurve"
             else:
                 if not all(i.STEP_SIZE == scans[0].STEP_SIZE for i in scans):
                     raise Exception("The Step Size is inconsistent.")
@@ -181,7 +165,7 @@ class RawFile(FileModule):
                     if attr['STEPPING_DRIVE2'] == 'PHI':
                         attr['TYPE'] = 'PolesFigurePlot'
                         attr['VIT_ANGLE'] = float(
-                            scans[0].STEP_SIZE / scans[0].STEP_TIME)
+                            (scans[0].PHI - scans[1].PHI) / scans[0].STEP_TIME)
 
         return data, attr
 

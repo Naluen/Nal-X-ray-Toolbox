@@ -1,21 +1,32 @@
 import logging
+
+import os
 from PyQt5 import QtWidgets
+
+from module.OneDScanProc import OneDScanProc
+from module.PolesFigureProc import PolesFigureProc
 from module.RSMProc import RSMProc
 from module.RawFile import RawFile
-from module.PolesFigureProc import PolesFigureProc
-from module.OneDScanProc import OneDScanProc
+from module.UxdFile import UxdFile
+from module.RCurveProc import RCurveProc
 
 SCAN_DICT = {
     "RSMPlot": RSMProc,
     "PolesFigurePlot": PolesFigureProc,
-    "SINGLESCAN": OneDScanProc
+    "SingleScan": OneDScanProc,
+    "RockingCurve": RCurveProc
 }
+FILE_DICT = {
+    ".raw": RawFile,
+    ".uxd": UxdFile
+}
+
 
 class UI(object):
     def __init__(self, parent):
         # Main layout.
         self.menu_bar = QtWidgets.QMenuBar(parent)
-        self.menu_file = QtWidgets.QMenu("&File",self.menu_bar)
+        self.menu_file = QtWidgets.QMenu("&File", self.menu_bar)
         self.action_open_file = QtWidgets.QAction(
             "Open File...", self.menu_file)
         self.menu_sub_save = QtWidgets.QMenu(
@@ -30,7 +41,7 @@ class UI(object):
         self.action_save_slice_data = QtWidgets.QAction(
             "Save Slice Data...", self.menu_sub_save
         )
-        
+
         self.menu_sub_save.addAction(self.action_save_main_image)
         self.menu_sub_save.addAction(self.action_save_slice_image)
         self.menu_sub_save.addAction(self.action_save_slice_data)
@@ -39,35 +50,37 @@ class UI(object):
         self.menu_bar.addMenu(self.menu_file)
         parent.setMenuBar(self.menu_bar)
 
+
 class ProgramInterface(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        # Right Sublayout with two slice plot
+        # Right Sub layout with two slice plot
         self.ui = UI(parent=self)
         self.resize(1300, 600)
 
         self.ui.action_open_file.triggered.connect(self._open_file)
-        
 
     def _open_file(self):
         file_name = QtWidgets.QFileDialog.getOpenFileName(
             self, 'Open file',
             "/",
-            "RAW files (*.raw)"
-            )
+            "DATA File (*.raw *.uxd)"
+        )
         file_name = str(file_name[0])
         if file_name:
-            opened_file = RawFile()
+            _, extension = os.path.splitext(file_name)
+            opened_file = FILE_DICT[extension]()
             opened_file.get_file(file_name)
             data, attr = opened_file.get_data()
             self.main_scan = SCAN_DICT[attr['TYPE']]()
             self.setCentralWidget(self.main_scan.plot_widget)
+
             self.main_scan.set_data(data, attr)
             self.main_scan._repaint("")
 
             self.ui.action_save_main_image.triggered.connect(
                 self.main_scan._save_image)
-    
+
 
 if __name__ == '__main__':
     import sys

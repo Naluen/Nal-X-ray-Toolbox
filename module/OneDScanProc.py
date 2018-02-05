@@ -5,12 +5,12 @@ from functools import partial
 
 import matplotlib.pyplot as plt
 import numpy as np
+from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
-from PyQt5 import QtCore, QtGui, QtWidgets
 
-from module.Module import ProcModule
 from module.Module import BasicToolBar
+from module.Module import ProcModule
 
 
 class OneDScanProc(ProcModule):
@@ -34,7 +34,7 @@ class OneDScanProc(ProcModule):
     @property
     @abc.abstractmethod
     def supp_type(self):
-        "OneDScan"
+        return "SingleScan"
 
     def _build_plot_widget(self):
         self.canvas = FigureCanvas(self.figure)
@@ -97,13 +97,38 @@ class OneDScanProc(ProcModule):
         except KeyError:
             self.q_tab_widget.addTab(widget, 'CONFIG')
 
-        self.q_tab_widget.closeEvent = self._close_configuration
+        self.q_tab_widget.closeEvent = self._configuration_close
         self.q_tab_widget.show()
 
+    def _configuration_close(self, event):
+        self._repaint(True)
+        event.accept()
+
+    def _export_data(self):
+        if not hasattr(self, 'data'):
+            return
+
+        data_file_name = QtWidgets.QFileDialog.getSaveFileName(
+            self.plot_widget,
+            'Save Image file',
+            "/",
+            "Txt File (*.txt)"
+        )
+        data_file_name = data_file_name[0]
+        if not data_file_name:
+            return
+        with open(data_file_name, 'w') as file_handle:
+            file_handle.write(
+                "%s, intensity" % self.attr['_STEPPING_DRIVE1'] + os.linesep)
+            for i, k in zip(self.data[0], self.data[1]):
+                file_handle.write("{0}, {1}".format(i, k) + os.linesep)
+
     @QtCore.pyqtSlot(bool)
-    def _repaint(self, message):
+    def _repaint(self, message=True):
+        logging.debug("Re-Paint Main Image")
         plt.figure(self.figure.number)
-        self.figure.clf()
+        if message:
+            self.figure.clf()
         if 'disable_log_y' in self.param and self.param['disable_log_y']:
             plt.plot(
                 self.data[0, :],
@@ -131,11 +156,13 @@ class OneDScanProc(ProcModule):
 
         return self.plot_widget
 
-    def set_data(self,data,attr,*args,**kargs):
+    def set_data(self, data, attr, *args, **kwargs):
         x = data[0, :][~np.isnan(data[1, :])]
         y = data[1, :][~np.isnan(data[1, :])]
         self.data = np.vstack((x, y))
         self.attr = attr
+
+        return self
 
     @property
     def fun_dict(self):
@@ -150,12 +177,12 @@ class OneDScanProc(ProcModule):
     def gaussian_func(x, alpha, x0=0):
         """ Return Gaussian line shape at x with HWHM alpha """
         return np.sqrt(np.log(2) / np.pi) / alpha * np.exp(
-            -((x-x0) / alpha) ** 2 * np.log(2))
+            -((x - x0) / alpha) ** 2 * np.log(2))
 
     @staticmethod
     def lorentzian_func(x, gamma, x0=0):
         """ Return Lorentzian line shape at x with HWHM gamma """
-        return gamma / np.pi / ((x-x0) ** 2 + gamma ** 2)
+        return gamma / np.pi / ((x - x0) ** 2 + gamma ** 2)
 
     @staticmethod
     def voigt_func(x, alpha, gamma, x0=0):
@@ -166,10 +193,10 @@ class OneDScanProc(ProcModule):
         """
         sigma = alpha / np.sqrt(2 * np.log(2))
         wofz_v = np.real(
-            wofz((((x-x0) - 14.22) + 1j * gamma) / sigma / np.sqrt(2)))
+            wofz((((x - x0) - 14.22) + 1j * gamma) / sigma / np.sqrt(2)))
 
         return wofz_v / sigma / np.sqrt(2 * np.pi)
-    
+
     @staticmethod
     def pseudo_voigt_func(x, alpha, gamma, mu, x0=0):
         def gaussian_func(x, alpha):
@@ -181,8 +208,8 @@ class OneDScanProc(ProcModule):
             """ Return Lorentzian line shape at x with HWHM gamma """
             return gamma / np.pi / (x ** 2 + gamma ** 2)
 
-        return mu * gaussian_func(x-x0, alpha) + (
-                1 - mu) * lorentzian_func(x-x0, gamma)
+        return mu * gaussian_func(x - x0, alpha) + (
+                1 - mu) * lorentzian_func(x - x0, gamma)
 
     def _binning_data(self, bin_width=5):
         from scipy.stats import binned_statistic
@@ -199,7 +226,7 @@ class OneDScanProc(ProcModule):
                          ) or (a, b[:len(a)])
         (x, y) = f(x, y)
         self.data = np.vstack((x, y))
-        self.refresh_canvas.emit(True)
+        self._repaint(True)
 
     def _fit(self, fit_fun='pseudo voigt', is_plot=True):
         """
@@ -245,9 +272,12 @@ class OneDScanProc(ProcModule):
                 )
             self.canvas.draw()
 
+        self._recent_fit_res = extra_res
+
         return x, fit_fun(x, *popt), extra_res
 
     def _filter(self):
+        logging.debug("Butter Filter...")
         from scipy import signal
         arg = signal.butter(5, 0.1)
         self.data[1, :] = signal.filtfilt(
@@ -282,7 +312,6 @@ class OneDScanProc(ProcModule):
 
             self.canvas.mpl_disconnect(self.cid_press)
             self._peak_side_point = []
-    # Config Menu.
 
     def _x_shift_to_centre(self):
         return self.data[0, :][np.argmax(self.data[1, :])]
@@ -311,34 +340,12 @@ class OneDScanProc(ProcModule):
                 'button_press_event', self._on_press
             )
 
-        # Build Canvas
-    # External methods.
-    
-    def _export_data(self):
-        if not hasattr(self, 'data'):
-            return
-
-        data_file_name = QtWidgets.QFileDialog.getSaveFileName(
-            self.plot_widget,
-            'Save Image file',
-            "/",
-            "Txt File (*.txt)"
-        )
-        data_file_name = data_file_name[0]
-        if not data_file_name:
-            return
-        with open(data_file_name, 'w') as file_handle:
-            file_handle.write(
-                "%s, intensity" % self.attr['_STEPPING_DRIVE1'] + os.linesep)
-            for i, k in zip(self.data[0], self.data[1]):
-                file_handle.write("{0}, {1}".format(i, k)+ os.linesep)
-
     def get_max(self, mode='direct'):
         if mode == 'direct':
             return np.max(self.data[1, :])
         elif mode == 'fit':
             self._target(is_plot=False)
-            _, _, extra_res =self._fit(fit_fun='pseudo_voigt', is_plot=0)
+            _, _, extra_res = self._fit(fit_fun='pseudo_voigt', is_plot=0)
             try:
                 step_time = self.attr['_STEPTIME']
             except KeyError:

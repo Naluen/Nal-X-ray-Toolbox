@@ -91,7 +91,7 @@ class RSMProc(ProcModule):
         widget = self._build_widget()
         self.q_tab_widget = QtWidgets.QTabWidget()
         self.q_tab_widget.addTab(widget, self.attr['TYPE'])
-        self.q_tab_widget.closeEvent = self._close_configuration
+        self.q_tab_widget.closeEvent = self._configuration_close
         self.q_tab_widget.show()
 
     def _export_data(self):

@@ -83,6 +83,7 @@ class FileModule(Module):
         super(FileModule, self).__init__()
         self.file = None
 
+
     @property
     @abc.abstractmethod
     def name(self):
@@ -108,6 +109,11 @@ class ProcModule(Module):
     def __init__(self):
         super(ProcModule, self).__init__()
         self.param = {}
+
+        self.data = None
+        self.attr = None
+
+        self.plot_widget = QtWidgets.QWidget()
 
     @property
     def name(self):
@@ -151,7 +157,7 @@ class ProcModule(Module):
     def _configuration(self):
         pass
 
-    def _close_configuration(self, event):
+    def _configuration_close(self, event):
         self._repaint("")
         event.accept()
 
@@ -197,6 +203,8 @@ class ProcModule(Module):
         for i in self.param:
             if i in self.attr:
                 self.param[i] = self.attr[i]
+
+        return self
 
 
 class BasicToolBar(QtWidgets.QToolBar):
