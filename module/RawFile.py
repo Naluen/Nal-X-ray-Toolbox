@@ -56,8 +56,8 @@ class RawFile(FileModule):
             raise Exception("Empty Dataset.")
 
         if not all([
-            i._STEPPING_DRIVE_CODE == scans[0]._STEPPING_DRIVE_CODE
-            for i in scans
+                i._STEPPING_DRIVE_CODE == scans[0]._STEPPING_DRIVE_CODE
+                for i in scans
         ]):
             raise Exception("Different Scan Type in this file.")
 
@@ -91,12 +91,11 @@ class RawFile(FileModule):
                 if len(i.intensity) < len(scans[0].intensity):
                     diff = len(scans[0].intensity) - len(i.intensity)
                     i.intensity = np.pad(
-                        np.asarray(i.intensity),
-                        (0, diff),
+                        np.asarray(i.intensity), (0, diff),
                         'constant',
-                        constant_values=(0, 0)
-                    ).tolist()
-            data = np.asanyarray([i.intensity for i in scans])
+                        constant_values=(0, 0)).tolist()
+            data = (np.asanyarray([i.intensity
+                                   for i in scans]) / scans[0].STEP_TIME)
         elif step_code is 13:
             raise Exception("Unknown Scan Type")
         else:
@@ -113,8 +112,8 @@ class RawFile(FileModule):
                     float(scans[0].STEP_SIZE) * int(scans[0].STEPS),
                     int(scans[0].STEPS))
                 data = np.vstack(
-                    (drv_x, np.asarray(scans[0].intensity) / attr['STEP_TIME'])
-                )
+                    (drv_x,
+                     np.asarray(scans[0].intensity) / attr['STEP_TIME']))
 
                 if step_code is 3:
                     attr['TYPE'] = "RockingCurve"
@@ -134,13 +133,13 @@ class RawFile(FileModule):
                         break
 
                 drv_2_n = attr['STEPPING_DRIVE2']
-                if not all(
-                        i.header[drv_2_n] == scans[0].header[drv_2_n] for i in
-                        scans):
+                if not all(i.header[drv_2_n] == scans[0].header[drv_2_n]
+                           for i in scans):
                     if 1:
-                        scans = [i for i in scans if
-                                 i.header[drv_2_n] == scans[0].header[drv_2_n]
-                                 ]
+                        scans = [
+                            i for i in scans
+                            if i.header[drv_2_n] == scans[0].header[drv_2_n]
+                        ]
 
                 attr['DRV_1'] = np.asarray(
                     [float(i.header[attr['STEPPING_DRIVE1']]) for i in scans])
@@ -154,12 +153,11 @@ class RawFile(FileModule):
                     if len(i.intensity) < len(scans[0].intensity):
                         diff = len(scans[0].intensity) - len(i.intensity)
                         i.intensity = np.pad(
-                            np.asarray(i.intensity),
-                            (0, diff),
+                            np.asarray(i.intensity), (0, diff),
                             'constant',
-                            constant_values=(0, 0)
-                        ).tolist()
-                data = np.asanyarray([i.intensity for i in scans])
+                            constant_values=(0, 0)).tolist()
+                data = (np.asanyarray([i.intensity for i in scans]) / float(
+                    scans[0].STEP_TIME))
 
                 if attr['STEPPING_DRIVE1'] == "KHI":
                     if attr['STEPPING_DRIVE2'] == 'PHI':

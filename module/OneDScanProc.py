@@ -21,9 +21,7 @@ class OneDScanProc(ProcModule):
 
         self._peak_side_point = []
 
-        self.param = {
-            "disable_log_y": False
-        }
+        self.param = {"disable_log_y": False}
         self.figure = plt.figure()
         self._build_plot_widget()
 
@@ -38,8 +36,8 @@ class OneDScanProc(ProcModule):
 
     def _build_plot_widget(self):
         self.canvas = FigureCanvas(self.figure)
-        self.canvas.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.canvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                  QtWidgets.QSizePolicy.Expanding)
 
         self._toolbar = BasicToolBar(self)
         # Fit tool button
@@ -47,22 +45,14 @@ class OneDScanProc(ProcModule):
 
         pseudo_voigt_fit_action = QtWidgets.QAction(
             QtGui.QIcon(QtGui.QPixmap('icons/curve.png')),
-            "Fit with (pseudo voigt)...",
-            fit_tool_button
-        )
+            "Fit with (pseudo voigt)...", fit_tool_button)
         pseudo_voigt_fit_action.triggered.connect(
-            lambda: self._fit(fit_fun='pseudo voigt')
-        )
-        fit_tool_button.setDefaultAction(
-            pseudo_voigt_fit_action
-        )
+            lambda: self._fit(fit_fun='pseudo voigt'))
+        fit_tool_button.setDefaultAction(pseudo_voigt_fit_action)
 
         fit_tool_button_menu = QtWidgets.QMenu()
         for i in self.fun_dict:
-            fit_tool_button_menu.addAction(
-                i,
-                lambda: self._fit(fit_fun=i)
-            )
+            fit_tool_button_menu.addAction(i, lambda: self._fit(fit_fun=i))
         fit_tool_button.setMenu(fit_tool_button_menu)
         self._toolbar.addWidget(fit_tool_button)
 
@@ -109,17 +99,13 @@ class OneDScanProc(ProcModule):
             return
 
         data_file_name = QtWidgets.QFileDialog.getSaveFileName(
-            self.plot_widget,
-            'Save Image file',
-            "/",
-            "Txt File (*.txt)"
-        )
+            self.plot_widget, 'Save Image file', "/", "Txt File (*.txt)")
         data_file_name = data_file_name[0]
         if not data_file_name:
             return
         with open(data_file_name, 'w') as file_handle:
             file_handle.write(
-                "%s, intensity" % self.attr['_STEPPING_DRIVE1'] + os.linesep)
+                "%s, intensity" % self.attr['STEPPING_DRIVE1'] + os.linesep)
             for i, k in zip(self.data[0], self.data[1]):
                 file_handle.write("{0}, {1}".format(i, k) + os.linesep)
 
@@ -177,12 +163,12 @@ class OneDScanProc(ProcModule):
     def gaussian_func(x, alpha, x0=0):
         """ Return Gaussian line shape at x with HWHM alpha """
         return np.sqrt(np.log(2) / np.pi) / alpha * np.exp(
-            -((x - x0) / alpha) ** 2 * np.log(2))
+            -((x - x0) / alpha)**2 * np.log(2))
 
     @staticmethod
     def lorentzian_func(x, gamma, x0=0):
         """ Return Lorentzian line shape at x with HWHM gamma """
-        return gamma / np.pi / ((x - x0) ** 2 + gamma ** 2)
+        return gamma / np.pi / ((x - x0)**2 + gamma**2)
 
     @staticmethod
     def voigt_func(x, alpha, gamma, x0=0):
@@ -202,14 +188,14 @@ class OneDScanProc(ProcModule):
         def gaussian_func(x, alpha):
             """ Return Gaussian line shape at x with HWHM alpha """
             return np.sqrt(np.log(2) / np.pi) / alpha * np.exp(
-                -(x / alpha) ** 2 * np.log(2))
+                -(x / alpha)**2 * np.log(2))
 
         def lorentzian_func(x, gamma):
             """ Return Lorentzian line shape at x with HWHM gamma """
-            return gamma / np.pi / (x ** 2 + gamma ** 2)
+            return gamma / np.pi / (x**2 + gamma**2)
 
         return mu * gaussian_func(x - x0, alpha) + (
-                1 - mu) * lorentzian_func(x - x0, gamma)
+            1 - mu) * lorentzian_func(x - x0, gamma)
 
     def _binning_data(self, bin_width=5):
         from scipy.stats import binned_statistic
@@ -218,12 +204,9 @@ class OneDScanProc(ProcModule):
             self.data[0, :],
             self.data[1, :],
             statistic='median',
-            bins=int(np.floor(len(self.data[1, :]) / bin_width))
-        )
+            bins=int(np.floor(len(self.data[1, :]) / bin_width)))
         x = self.data[0, :][::bin_width]
-        f = lambda a, b: (
-                                 len(a) > len(b) and (a[:len(b)], b)
-                         ) or (a, b[:len(a)])
+        f = lambda a, b: (len(a) > len(b) and (a[:len(b)], b)) or (a, b[:len(a)])
         (x, y) = f(x, y)
         self.data = np.vstack((x, y))
         self._repaint(True)
@@ -280,15 +263,13 @@ class OneDScanProc(ProcModule):
         logging.debug("Butter Filter...")
         from scipy import signal
         arg = signal.butter(5, 0.1)
-        self.data[1, :] = signal.filtfilt(
-            *arg, self.data[1, :], method="gust")
+        self.data[1, :] = signal.filtfilt(*arg, self.data[1, :], method="gust")
         self.refresh_canvas.emit(True)
 
     def _on_press(self, event):
         x = event.xdata
         self.figure.gca().plot(
-            x, self.data[1, :][np.abs(self.data[0, :] - x).argmin()], "*"
-        )
+            x, self.data[1, :][np.abs(self.data[0, :] - x).argmin()], "*")
         self._peak_side_point.append(x)
         self.canvas.draw()
         if len(self._peak_side_point) == 2:
@@ -336,9 +317,8 @@ class OneDScanProc(ProcModule):
             if is_plot:
                 self.refresh_canvas.emit(True)
         elif mode == 'manual':
-            self.cid_press = self.canvas.mpl_connect(
-                'button_press_event', self._on_press
-            )
+            self.cid_press = self.canvas.mpl_connect('button_press_event',
+                                                     self._on_press)
 
     def get_max(self, mode='direct'):
         if mode == 'direct':

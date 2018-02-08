@@ -1,19 +1,19 @@
 import logging
 import os
+from functools import partial
 
 import matplotlib.pyplot as plt
 import numpy as np
-from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
 from matplotlib.colors import LogNorm
+from PyQt5 import QtCore, QtGui, QtWidgets
 
-from module.Module import ProcModule, BasicToolBar
+from module.Module import BasicToolBar, ProcModule
 from module.OneDScanProc import OneDScanProc
 
 LAMBDA = 0.154055911278
 LATTICE_GAP = 0.54505
-
 
 # TODO Select area.
 
@@ -27,7 +27,7 @@ def _bragg_angle_cal(lattice, xtal_hkl):
     >>> assert abs(hkl_d[(0, 0, 2)]-32.8) < 0.1
     """
 
-    rms = lambda x: np.sqrt(np.sum(np.asarray(x) ** 2))
+    rms = lambda x: np.sqrt(np.sum(np.asarray(x)**2))
     bragg_angle = np.arcsin(LAMBDA / (2 * lattice / rms(xtal_hkl)))
 
     return np.rad2deg(bragg_angle) * 2
@@ -38,7 +38,7 @@ class RSMProc(ProcModule):
 
     def __init__(self):
         super(RSMProc, self).__init__()
-        self.param = {}
+        self.param = {"OMEGA_SHIFT": "0"}
         self.figure = plt.figure()
         self._build_plot_widget()
 
@@ -61,8 +61,7 @@ class RSMProc(ProcModule):
 
         self._qpushbutton_enable_select_area = QtWidgets.QPushButton(
             QtGui.QIcon(QtGui.QPixmap("icons/select_area.png")),
-            "Select Area..."
-        )
+            "Select Area...")
         self._qpushbutton_enable_select_area.setCheckable(True)
         self._qpushbutton_enable_select_area.toggled.connect(
             self._enable_cross_select)
@@ -87,10 +86,26 @@ class RSMProc(ProcModule):
         self.plot_widget.closeEvent = self.closeEvent
         self.plot_widget.resize(1000, 600)
 
+    def _build_config_widget(self):
+        config_widget = QtWidgets.QWidget(self.plot_widget)
+        config_layout = QtWidgets.QVBoxLayout()
+        config_widget.setLayout(config_layout)
+
+        omega_shift_input_layout = QtWidgets.QVBoxLayout()
+        omega_shift_input_layout.addWidget(QtWidgets.QLabel('Omega shift:'))
+        omega_shift_line_edit = QtWidgets.QLineEdit()
+        omega_shift_line_edit.setText(self.param['OMEGA_SHIFT'])
+        omega_shift_line_edit.textChanged.connect(
+            partial(self._upt_param, "OMEGA_SHIFT"))
+        omega_shift_input_layout.addWidget(omega_shift_line_edit)
+        config_layout.addLayout(omega_shift_input_layout)
+
+        return config_widget
+
     def _configuration(self):
-        widget = self._build_widget()
+        widget = self._build_config_widget()
         self.q_tab_widget = QtWidgets.QTabWidget()
-        self.q_tab_widget.addTab(widget, self.attr['TYPE'])
+        self.q_tab_widget.addTab(widget, "RSM")
         self.q_tab_widget.closeEvent = self._configuration_close
         self.q_tab_widget.show()
 
@@ -126,6 +141,12 @@ class RSMProc(ProcModule):
         except KeyError:
             phi = self.attr['PHI']
 
+        if self.param['OMEGA_SHIFT']:
+            try:
+                omega -= float(self.param['OMEGA_SHIFT'])
+            except ValueError:
+                pass
+
         hkl_l = [(0, 0, 2), (0, 0, 4), (0, 0, 6), (2, 2, -4)]
         hkl_d = {i: _bragg_angle_cal(LATTICE_GAP, i) for i in hkl_l}
         hkl = [i for i in hkl_d if abs(tth[0] - hkl_d[i]) <= 3]
@@ -159,6 +180,9 @@ class RSMProc(ProcModule):
             norm=LogNorm(vmin=int_data.min() + 1, vmax=int_data.max()),
             extent=[s_x.min(), s_x.max(),
                     s_z.min(), s_z.max()])
+
+        plt.xlabel("$S_x$")
+        plt.xlabel("$S_z$")
 
         cb = self.figure.colorbar(
             im,
@@ -207,10 +231,10 @@ class RSMProc(ProcModule):
 
     def _enable_cross_select(self, event):
         if event:
-            self.cid_click = self.canvas.mpl_connect(
-                'button_press_event', self._select_slice_centre)
-            self.cid_motion = self.canvas.mpl_connect(
-                'motion_notify_event', self._mpl_on_motion)
+            self.cid_click = self.canvas.mpl_connect('button_press_event',
+                                                     self._select_slice_centre)
+            self.cid_motion = self.canvas.mpl_connect('motion_notify_event',
+                                                      self._mpl_on_motion)
         else:
             self.canvas.mpl_disconnect(self.cid_click)
             self.canvas.mpl_disconnect(self.cid_motion)
@@ -245,7 +269,6 @@ class RSMProc(ProcModule):
             # else:
             #     self._cur_centre.append((event.xdata, event.ydata))
             #     self.plot_cut(self._cur_centre, self._width)
-    # Config Menu.
 
     def _slice_cross_area(self, event, width):
         try:
@@ -261,16 +284,21 @@ class RSMProc(ProcModule):
         x_max_dt = x_dt + width / 2
         y_max_dt = y_dt + width / 2
 
-        [x, x_min, x_max] = [
-            self._int2coor(xi, i) for i in [x_dt, x_min_dt, x_max_dt]]
-        [y, y_min, y_max] = [
-            self._int2coor(yi, i) for i in [y_dt, y_min_dt, y_max_dt]]
+        [x, x_min,
+         x_max] = [self._int2coor(xi, i) for i in [x_dt, x_min_dt, x_max_dt]]
+        [y, y_min,
+         y_max] = [self._int2coor(yi, i) for i in [y_dt, y_min_dt, y_max_dt]]
 
-        h_lines, = plt.plot([x_min_dt, x_max_dt, x_max_dt, x_min_dt, x_min_dt],
-                            [yi.min(), yi.min(), yi.max(), yi.max(), yi.min()])
+        h_lines, = plt.plot(
+            [x_min_dt, x_max_dt, x_max_dt, x_min_dt, x_min_dt],
+            [yi.min(), yi.min(),
+             yi.max(), yi.max(),
+             yi.min()])
 
-        v_lines, = plt.plot([xi.min(), xi.min(), xi.max(), xi.max(), xi.min()],
-                            [y_max_dt, y_min_dt, y_min_dt, y_max_dt, y_max_dt])
+        v_lines, = plt.plot(
+            [xi.min(), xi.min(),
+             xi.max(), xi.max(),
+             xi.min()], [y_max_dt, y_min_dt, y_min_dt, y_max_dt, y_max_dt])
 
         if width < 1e-10:
             data_x = s_data[y, :]
@@ -308,4 +336,7 @@ class RSMProc(ProcModule):
         #         self.canvas.draw()
         #     else:
         #         return
-    # External methods.
+
+
+class slider_line_edit_layout(QtWidgets.QLayout.QHBoxLayout):
+    def _

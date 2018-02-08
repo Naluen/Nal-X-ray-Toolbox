@@ -21,12 +21,20 @@ class UxdFile(FileModule):
         with open(self.file, 'r') as file_handle:
             data_list = [line.strip() for line in file_handle]
 
-        from itertools import groupby
-        data_list = [list(g) for k, g in
-                     groupby((line.strip() for line in data_list), bool) if k]
-        header = {i.split('=')[0].strip(): i.split('=')[1].strip()
-                  for i in data_list[0] if i.startswith("_")}
+        new_data_list = []
+        cube = []
+        for i in data_list:
+            if i.startswith('; (Data for Range number'):
+                new_data_list.append(cube)
+                cube = []
+            else:
+                cube.append(i)
+        data_list = new_data_list
 
+        header = {
+            i.split('=')[0].strip(): i.split('=')[1].strip()
+            for i in data_list[0] if i.startswith("_")
+        }
         attr = {}
 
         if header['_TYPE'] == 'TwoDPlot':
@@ -43,9 +51,9 @@ class UxdFile(FileModule):
             if header['_STEPPING_DRIVE1'] == 'KHI':
                 if header['_STEPPING_DRIVE2'] == 'PHI':
                     phi_data = self.two_d_data(data_list, 0)
-                    attr['VIT_ANGLE'] = (
-                            (phi_data[0, 1] - phi_data[0, 0]) /
-                            self.one_d_data(data_list, '_STEPTIME')[0][0])
+                    attr['VIT_ANGLE'] = ((
+                        phi_data[0, 1] - phi_data[0, 0]) / self.one_d_data(
+                            data_list, '_STEPTIME')[0][0])
                     attr['TYPE'] = 'PolesFigurePlot'
 
         elif header['_TYPE'] == 'RSMPlot':
@@ -60,9 +68,8 @@ class UxdFile(FileModule):
             attr['OMEGA'] = attr['OMEGA'][:w]
 
         elif header['_TYPE'] == 'SingleScanPlot':
-            data = np.vstack((
-                self.two_d_data(data_list, 0),
-                self.two_d_data(data_list, 1)))
+            data = np.vstack((self.two_d_data(data_list, 0),
+                              self.two_d_data(data_list, 1)))
             attr['TYPE'] = 'SingleScan'
             try:
                 if header['_SCAN_TYPE'] == 'rocking curve':
@@ -77,8 +84,7 @@ class UxdFile(FileModule):
 
         attr['STEP_TIME'] = float(
             self.one_d_data(data_list, '_STEPTIME')[0][0])
-        attr['STPES'] = int(
-            self.one_d_data(data_list, '_STEPS')[0][0])
+        attr['STPES'] = int(self.one_d_data(data_list, '_STEPS')[0][0])
         attr['STEP_SIZE'] = float(
             self.one_d_data(data_list, '_STEP_SIZE')[0][0])
 
@@ -86,12 +92,10 @@ class UxdFile(FileModule):
 
     @staticmethod
     def two_d_data(data_list, index):
-        data = [
-            [float(j.split('\t')[index]) for j in
-             value
-             if (re.match('\d', j) or j.startswith("-"))]
-            for value in data_list[1:]
-        ]
+        data = [[
+            float(j.split('\t')[index]) for j in value
+            if (re.match('\d', j) or j.startswith("-"))
+        ] for value in data_list[1:]]
         data = [i for i in data if i]
         data = np.asanyarray(data)
         return data
@@ -99,12 +103,8 @@ class UxdFile(FileModule):
     @staticmethod
     def one_d_data(data_list, key_word):
         data = np.asarray(
-            [
-                [float(j.split('=')[1]) for j
-                 in value if j.startswith(key_word)]
-                for value in data_list[1:]
-            ]
-        )
+            [[float(j.split('=')[1]) for j in value if j.startswith(key_word)]
+             for value in data_list[1:]])
         return data
 
 

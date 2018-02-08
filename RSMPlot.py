@@ -16,10 +16,7 @@ SCAN_DICT = {
     "SingleScan": OneDScanProc,
     "RockingCurve": RCurveProc
 }
-FILE_DICT = {
-    ".raw": RawFile,
-    ".uxd": UxdFile
-}
+FILE_DICT = {".raw": RawFile, ".uxd": UxdFile}
 
 
 class UI(object):
@@ -27,20 +24,15 @@ class UI(object):
         # Main layout.
         self.menu_bar = QtWidgets.QMenuBar(parent)
         self.menu_file = QtWidgets.QMenu("&File", self.menu_bar)
-        self.action_open_file = QtWidgets.QAction(
-            "Open File...", self.menu_file)
-        self.menu_sub_save = QtWidgets.QMenu(
-            "Save...", self.menu_file
-        )
+        self.action_open_file = QtWidgets.QAction("Open File...",
+                                                  self.menu_file)
+        self.menu_sub_save = QtWidgets.QMenu("Save...", self.menu_file)
         self.action_save_main_image = QtWidgets.QAction(
-            "Save Main Image...", self.menu_sub_save
-        )
+            "Save Main Image...", self.menu_sub_save)
         self.action_save_slice_image = QtWidgets.QAction(
-            "Save Slice Image...", self.menu_sub_save
-        )
+            "Save Slice Image...", self.menu_sub_save)
         self.action_save_slice_data = QtWidgets.QAction(
-            "Save Slice Data...", self.menu_sub_save
-        )
+            "Save Slice Data...", self.menu_sub_save)
 
         self.menu_sub_save.addAction(self.action_save_main_image)
         self.menu_sub_save.addAction(self.action_save_slice_image)
@@ -62,14 +54,11 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
     def _open_file(self):
         file_name = QtWidgets.QFileDialog.getOpenFileName(
-            self, 'Open file',
-            "/",
-            "DATA File (*.raw *.uxd)"
-        )
+            self, 'Open file', "/", "DATA File (*.raw *.uxd)")
         file_name = str(file_name[0])
         if file_name:
             _, extension = os.path.splitext(file_name)
-            opened_file = FILE_DICT[extension]()
+            opened_file = FILE_DICT[str(extension).lower()]()
             opened_file.get_file(file_name)
             data, attr = opened_file.get_data()
             self.main_scan = SCAN_DICT[attr['TYPE']]()
@@ -89,8 +78,7 @@ if __name__ == '__main__':
         # filename=os.path.join(
         #     os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
         level=logging.DEBUG,
-        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-    )
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
     Program = QtWidgets.QApplication(sys.argv)
     MyProgram = ProgramInterface()
     MyProgram.show()
