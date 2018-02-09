@@ -4,16 +4,17 @@ from functools import partial
 
 import matplotlib.pyplot as plt
 import numpy as np
+from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import \
     FigureCanvasQTAgg as FigureCanvas
 from matplotlib.colors import LogNorm
-from PyQt5 import QtCore, QtGui, QtWidgets
 
 from module.Module import BasicToolBar, ProcModule
 from module.OneDScanProc import OneDScanProc
 
 LAMBDA = 0.154055911278
 LATTICE_GAP = 0.54505
+
 
 # TODO Select area.
 
@@ -27,7 +28,7 @@ def _bragg_angle_cal(lattice, xtal_hkl):
     >>> assert abs(hkl_d[(0, 0, 2)]-32.8) < 0.1
     """
 
-    rms = lambda x: np.sqrt(np.sum(np.asarray(x)**2))
+    rms = lambda x: np.sqrt(np.sum(np.asarray(x) ** 2))
     bragg_angle = np.arcsin(LAMBDA / (2 * lattice / rms(xtal_hkl)))
 
     return np.rad2deg(bragg_angle) * 2
@@ -73,9 +74,23 @@ class RSMProc(ProcModule):
         # Slice Plot Widget
         self._x_slice = OneDScanProc()
         self._y_slice = OneDScanProc()
+        self._x_slider = SliderLineEditLayout(self)
+        self._x_slider.slider_bar.valueChanged.connect(
+            lambda: self._slice_cross_area(
+                width_y=self._y_slider.width,
+                width_x=self._x_slider.width)
+        )
+        self._y_slider = SliderLineEditLayout(self)
+        self._y_slider.slider_bar.valueChanged.connect(
+            lambda: self._slice_cross_area(
+                width_x=self._x_slider.width,
+                width_y=self._y_slider.width)
+        )
         self._sub_right_layout = QtWidgets.QVBoxLayout()
         self._sub_right_layout.addWidget(self._x_slice.plot_widget)
+        self._sub_right_layout.addLayout(self._x_slider)
         self._sub_right_layout.addWidget(self._y_slice.plot_widget)
+        self._sub_right_layout.addLayout(self._y_slider)
 
         self._main_layout = QtWidgets.QHBoxLayout()
         self._main_layout.addLayout(self._sub_left_layout)
@@ -213,7 +228,7 @@ class RSMProc(ProcModule):
 
     @staticmethod
     def _int2coor(axis, ind):
-        coor = int(np.argmin(np.abs(axis - ind)))
+        coor = (np.abs(axis - ind)).argmin()
 
         return coor
 
@@ -232,45 +247,26 @@ class RSMProc(ProcModule):
     def _enable_cross_select(self, event):
         if event:
             self.cid_click = self.canvas.mpl_connect('button_press_event',
-                                                     self._select_slice_centre)
+                                                     self._mpl_double_click_select)
             self.cid_motion = self.canvas.mpl_connect('motion_notify_event',
                                                       self._mpl_on_motion)
         else:
             self.canvas.mpl_disconnect(self.cid_click)
             self.canvas.mpl_disconnect(self.cid_motion)
 
-    def _select_slice_centre(self, event):
+    def _mpl_double_click_select(self, event):
         """Plot the line and draw the profile when clicked.
 
         Double click for cross_line, single click for ab_line."""
-        if event.inaxes != self.figure.axes[0]:
-            return
+        if hasattr(event, "button"):
+            if event.inaxes != self.figure.axes[0]:
+                return
 
-        if event.button == 1 and event.dblclick:
-            self._clean_lines()
-            self._cur_centre = [(event.xdata, event.ydata)]
-            lines, data = self._slice_cross_area(self._cur_centre, 0.05)
-            self.canvas.draw()
-            self._lines.extend(lines)
+            if event.button == 1 and event.dblclick:
+                self._cur_centre = (event.xdata, event.ydata)
+                self._slice_cross_area(self._cur_centre)
 
-            self._x_slice.set_data(data[0], {'STEPPING_DRIVE1': 'Qx'})
-            self._x_slice.figure.clf()
-            self._x_slice._repaint("")
-
-            self._y_slice.set_data(data[1], {'STEPPING_DRIVE1': 'Qz'})
-            self._y_slice.figure.clf()
-            self._y_slice._repaint("")
-
-        elif event.button == 1 and not event.dblclick:
-            pass
-            # self._count += 1
-            # if self._count % 2 == 1:
-            #     self._cur_centre = [(event.xdata, event.ydata)]
-            # else:
-            #     self._cur_centre.append((event.xdata, event.ydata))
-            #     self.plot_cut(self._cur_centre, self._width)
-
-    def _slice_cross_area(self, event, width):
+    def _slice_cross_area(self, *args, width_x=0.05, width_y=0.05):
         try:
             xi = self.xi
             yi = self.yi
@@ -278,11 +274,19 @@ class RSMProc(ProcModule):
         except AttributeError:
             return
 
-        (x_dt, y_dt) = event[0]
-        x_min_dt = x_dt - width / 2
-        y_min_dt = y_dt - width / 2
-        x_max_dt = x_dt + width / 2
-        y_max_dt = y_dt + width / 2
+        self._clean_lines()
+
+        if args:
+            (x_dt, y_dt) = args[0]
+        else:
+            try:
+                (x_dt, y_dt) = self._cur_centre
+            except AttributeError:
+                return
+        x_min_dt = x_dt - width_x / 2
+        y_min_dt = y_dt - width_y / 2
+        x_max_dt = x_dt + width_x / 2
+        y_max_dt = y_dt + width_y / 2
 
         [x, x_min,
          x_max] = [self._int2coor(xi, i) for i in [x_dt, x_min_dt, x_max_dt]]
@@ -291,25 +295,43 @@ class RSMProc(ProcModule):
 
         h_lines, = plt.plot(
             [x_min_dt, x_max_dt, x_max_dt, x_min_dt, x_min_dt],
-            [yi.min(), yi.min(),
-             yi.max(), yi.max(),
-             yi.min()])
+            [yi.min(), yi.min(), yi.max(), yi.max(), yi.min()],
+            color='C1'
+        )
 
         v_lines, = plt.plot(
-            [xi.min(), xi.min(),
-             xi.max(), xi.max(),
-             xi.min()], [y_max_dt, y_min_dt, y_min_dt, y_max_dt, y_max_dt])
+            [xi.min(), xi.min(), xi.max(), xi.max(), xi.min()],
+            [y_max_dt, y_min_dt, y_min_dt, y_max_dt, y_max_dt],
+            color='C2'
+        )
 
-        if width < 1e-10:
-            data_x = s_data[y, :]
-            data_y = s_data[:, x]
-        else:
-            data_x = np.sum(s_data[y_min:y_max, :], axis=0)
-            data_y = np.sum(s_data[:, x_min:x_max], axis=1)
+        width, length = s_data.shape
+        y_min = max(y_min, 0)
+        x_min = max(x_min, 0)
+        y_max = min(y_max, width)
+        x_max = min(x_max, length)
+        s_data[np.isnan(s_data)] = 0
+
+        data_x = s_data[y, :] if width_x < 1e-10 else np.sum(
+            s_data[y_min:y_max, :], axis=0)
+        data_y = s_data[:, x] if width_y < 1e-10 else np.sum(
+            s_data[:, x_min:x_max], axis=1)
+        print(data_x.tolist())
 
         self.canvas.draw()
         data = [np.vstack((yi, data_y)), np.vstack((xi, data_x))]
         lines = [h_lines, v_lines]
+
+        self.canvas.draw()
+        self._lines.extend(lines)
+
+        self._x_slice.set_data(data[0], {'STEPPING_DRIVE1': 'Qx'})
+        self._x_slice.figure.clf()
+        self._x_slice._repaint("")
+
+        self._y_slice.set_data(data[1], {'STEPPING_DRIVE1': 'Qz'})
+        self._y_slice.figure.clf()
+        self._y_slice._repaint("")
 
         return lines, data,
 
@@ -338,5 +360,36 @@ class RSMProc(ProcModule):
         #         return
 
 
-class slider_line_edit_layout(QtWidgets.QLayout.QHBoxLayout):
-    def _
+class SliderLineEditLayout(QtWidgets.QHBoxLayout):
+    def __init__(self, parent=None):
+        super().__init__()
+        self.label = QtWidgets.QLabel("Width:")
+        self.addWidget(self.label)
+
+        self.slider_bar = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.slider_bar.setMaximum(100)
+        self.slider_bar.setMinimum(1)
+        self.slider_bar.setValue(5)
+        self.slider_bar.setSingleStep(1)
+        self.addWidget(self.slider_bar)
+
+        self.line_edit = QtWidgets.QLineEdit()
+        self.addWidget(self.line_edit)
+
+        try:
+            self.slider_bar.valueChanged.connect(
+                lambda: self.line_edit.setText(
+                    str(self.slider_bar.value()/100))
+            )
+            self.line_edit.textChanged.connect(
+                lambda: self.slider_bar.setValue(
+                    float(self.line_edit.text())*100)
+            )
+        except ValueError:
+            pass
+
+        self.width = 0.05
+
+        self.slider_bar.valueChanged.connect(
+            lambda: setattr(self, "width", float(self.slider_bar.value()/100))
+        )
