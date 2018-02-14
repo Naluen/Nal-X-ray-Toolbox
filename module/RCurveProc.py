@@ -138,7 +138,7 @@ class RCurveProc(OneDScanProc):
         self.q_tab_widget.show()
 
     @QtCore.pyqtSlot(bool)
-    def _repaint(self, message=True):
+    def repaint(self, message=True):
         logging.debug("Re-Paint rocking curve %s" % self)
         if message:
             self.figure.clf()
@@ -164,7 +164,7 @@ class RCurveProc(OneDScanProc):
     def plot(self):
         """Plot Image."""
         self.figure.clf()
-        self._repaint(True)
+        self.repaint(True)
 
         self.plot_widget.show()
 

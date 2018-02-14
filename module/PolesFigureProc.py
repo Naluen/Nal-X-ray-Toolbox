@@ -87,7 +87,7 @@ class PolesFigureProc(ProcModule):
         self.plot_widget.resize(1000, 400)
         self.plot_widget.closeEvent = self.closeEvent
 
-        self.refresh_canvas.connect(self._repaint)
+        self.refresh_canvas.connect(self.repaint)
 
     def _build_config_widget(self):
         config_widget = QtWidgets.QWidget(self.plot_widget)
@@ -193,7 +193,7 @@ class PolesFigureProc(ProcModule):
         pass
 
     @QtCore.pyqtSlot(bool)
-    def _repaint(self, message):
+    def repaint(self, message):
         self.figure.clf()
         try:
             v_max = self.attr['V_MAX']
@@ -235,7 +235,7 @@ class PolesFigureProc(ProcModule):
     # External methods.
     def plot(self):
         """Plot Image."""
-        self._repaint("")
+        self.repaint("")
 
         self.plot_widget.show()
 
@@ -390,7 +390,7 @@ class PolesFigureProc(ProcModule):
         edge[np.where(edges2 > 1e-2)] = 1  # Set edge to 1.
 
         plt.figure(self.figure.number)
-        self._repaint(True)
+        self.repaint(True)
         plt.imshow(
             np.roll(np.roll(edge, -hor_min, axis=0), -ver_min, axis=1),
             origin='lower',

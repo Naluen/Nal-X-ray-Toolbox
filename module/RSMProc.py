@@ -16,9 +16,6 @@ LAMBDA = 0.154055911278
 LATTICE_GAP = 0.54505
 
 
-# TODO Select area.
-
-
 def _bragg_angle_cal(lattice, xtal_hkl):
     """
     Calculation the bragg angle based on the crystal miller
@@ -39,11 +36,16 @@ class RSMProc(ProcModule):
 
     def __init__(self):
         super(RSMProc, self).__init__()
-        self.param = {"OMEGA_SHIFT": "0"}
+        self.param = {
+            "OMEGA_SHIFT": "0",
+            "ENABLE_ABSOLUTE_MODE": True
+        }
         self.figure = plt.figure()
         self._build_plot_widget()
 
         self._lines = []
+        self._click_count = 0
+        self._click_point_list = []
 
     @property
     def name(self):
@@ -67,6 +69,26 @@ class RSMProc(ProcModule):
         self._qpushbutton_enable_select_area.toggled.connect(
             self._enable_cross_select)
         self._toolbar.addWidget(self._qpushbutton_enable_select_area)
+
+        self._qpushbutton_enable_select_line = QtWidgets.QPushButton(
+            QtGui.QIcon(QtGui.QPixmap("icons/select_area.png")),
+            "Select Line...")
+        self._qpushbutton_enable_select_line.setCheckable(True)
+        self._qpushbutton_enable_select_line.toggled.connect(
+            self._enable_arbitrary_select)
+        self._toolbar.addWidget(self._qpushbutton_enable_select_line)
+
+        self._qpushbutton_enable_select_area.toggled.connect(
+            lambda: self._qpushbutton_enable_select_line.setEnabled(
+                not self._qpushbutton_enable_select_area.isChecked()
+            )
+        )
+
+        self._qpushbutton_enable_select_line.toggled.connect(
+            lambda: self._qpushbutton_enable_select_area.setEnabled(
+                not self._qpushbutton_enable_select_line.isChecked()
+            )
+        )
         # Main Plot Widget
         self._sub_left_layout = QtWidgets.QVBoxLayout()
         self._sub_left_layout.addWidget(self._toolbar)
@@ -115,6 +137,15 @@ class RSMProc(ProcModule):
         omega_shift_input_layout.addWidget(omega_shift_line_edit)
         config_layout.addLayout(omega_shift_input_layout)
 
+        enable_absolute_mode_button = QtWidgets.QRadioButton(
+            "Enable absolute mode")
+        enable_absolute_mode_button.setStatusTip("Swap all the NaN to 0")
+        enable_absolute_mode_button.setChecked(
+            self.param["ENABLE_ABSOLUTE_MODE"])
+        enable_absolute_mode_button.toggled.connect(
+            partial(self._upt_param, "ENABLE_ABSOLUTE_MODE"))
+        config_layout.addWidget(enable_absolute_mode_button)
+
         return config_widget
 
     def _configuration(self):
@@ -128,7 +159,7 @@ class RSMProc(ProcModule):
         pass
 
     @QtCore.pyqtSlot(bool)
-    def _repaint(self, message):
+    def repaint(self, message):
         # ====================================================================
         logging.debug("=" * 36)
         logging.debug("Scan Header has been read.")
@@ -197,7 +228,7 @@ class RSMProc(ProcModule):
                     s_z.min(), s_z.max()])
 
         plt.xlabel("$S_x$")
-        plt.xlabel("$S_z$")
+        plt.ylabel("$S_z$")
 
         cb = self.figure.colorbar(
             im,
@@ -214,9 +245,11 @@ class RSMProc(ProcModule):
 
         self.canvas.draw()
 
+        self.canvas.mpl_connect('scroll_event', self._zoom_fun)
+
     def plot(self):
         """Plot Image."""
-        self._repaint("")
+        self.repaint("")
 
         self.plot_widget.show()
 
@@ -244,12 +277,12 @@ class RSMProc(ProcModule):
         else:
             return
 
-    def _enable_cross_select(self, event):
-        if event:
-            self.cid_click = self.canvas.mpl_connect('button_press_event',
-                                                     self._mpl_double_click_select)
-            self.cid_motion = self.canvas.mpl_connect('motion_notify_event',
-                                                      self._mpl_on_motion)
+    def _enable_cross_select(self, signal):
+        if signal:
+            self.cid_click = self.canvas.mpl_connect(
+                'button_press_event', self._mpl_double_click_select)
+            self.cid_motion = self.canvas.mpl_connect(
+                'motion_notify_event', self._mpl_on_motion)
         else:
             self.canvas.mpl_disconnect(self.cid_click)
             self.canvas.mpl_disconnect(self.cid_motion)
@@ -310,13 +343,13 @@ class RSMProc(ProcModule):
         x_min = max(x_min, 0)
         y_max = min(y_max, width)
         x_max = min(x_max, length)
-        s_data[np.isnan(s_data)] = 0
+        if self.param['ENABLE_ABSOLUTE_MODE']:
+            s_data[np.isnan(s_data)] = 0
 
         data_x = s_data[y, :] if width_x < 1e-10 else np.sum(
             s_data[y_min:y_max, :], axis=0)
         data_y = s_data[:, x] if width_y < 1e-10 else np.sum(
             s_data[:, x_min:x_max], axis=1)
-        print(data_x.tolist())
 
         self.canvas.draw()
         data = [np.vstack((yi, data_y)), np.vstack((xi, data_x))]
@@ -327,13 +360,79 @@ class RSMProc(ProcModule):
 
         self._x_slice.set_data(data[0], {'STEPPING_DRIVE1': 'Qx'})
         self._x_slice.figure.clf()
-        self._x_slice._repaint("")
+        self._x_slice.repaint("")
 
         self._y_slice.set_data(data[1], {'STEPPING_DRIVE1': 'Qz'})
         self._y_slice.figure.clf()
-        self._y_slice._repaint("")
+        self._y_slice.repaint("")
 
         return lines, data,
+
+    def _enable_arbitrary_select(self, signal):
+        if signal:
+            self.cid_click = self.canvas.mpl_connect(
+                'button_press_event', self._mpl_single_click_select
+            )
+        else:
+            self.canvas.mpl_disconnect(self.cid_click)
+
+    def _mpl_single_click_select(self, event):
+        if hasattr(event, "button"):
+            if event.inaxes != self.figure.axes[0]:
+                return
+
+            if event.button == 1:
+                self._click_count += 1
+                self._click_point_list.append(event)
+
+                if not self._click_count % 2:
+                    self._slice_arbitrary_line(self._click_point_list)
+                    self._click_point_list = []
+
+    def _slice_arbitrary_line(self, points_list):
+        try:
+            xi = self.xi
+            yi = self.yi
+            s_data = self.zi
+        except AttributeError:
+            return
+
+        self._clean_lines()
+
+        num = 1000
+        x0_data = points_list[0].xdata
+        x1_data = points_list[1].xdata
+        x_axis = np.linspace(x0_data, x1_data, num)
+        y0_data = points_list[0].ydata
+        y1_data = points_list[1].ydata
+        y_axis = np.linspace(y0_data, y1_data, num)
+
+        x0 = self._int2coor(xi, x0_data)
+        x1 = self._int2coor(xi, x1_data)
+        y0 = self._int2coor(yi, y0_data)
+        y1 = self._int2coor(yi, y1_data)
+
+        x, y = np.linspace(x0, x1, num), np.linspace(y0, y1, num)
+
+        # Extract the values along the line, using cubic interpolation
+        from scipy import ndimage
+        zi = ndimage.map_coordinates(s_data, np.vstack((y, x)), order=1)
+        # zi = s_data[y.astype(np.int), x.astype(np.int)]
+
+        data = [np.vstack((x_axis, zi)), np.vstack((y_axis, zi))]
+
+        plt.figure(self.figure.number)
+        line, = plt.plot([x0_data, x1_data], [y0_data, y1_data], 'ro-')
+        self.canvas.draw()
+        self._lines.extend([line])
+
+        self._x_slice.set_data(data[0], {'STEPPING_DRIVE1': 'Sx'})
+        self._x_slice.figure.clf()
+        self._x_slice.repaint("")
+
+        self._y_slice.set_data(data[1], {'STEPPING_DRIVE1': 'Sz'})
+        self._y_slice.figure.clf()
+        self._y_slice.repaint("")
 
     def _mpl_on_motion(self, event):
         """Change the line and status bar during the mouse moving."""
@@ -359,6 +458,37 @@ class RSMProc(ProcModule):
         #     else:
         #         return
 
+    def _zoom_fun(self, event):
+        """ Zoom function based on tacaswell's answer at
+        https://stackoverflow.com/questions/11551049/matplotlib-plot-zooming-with-scroll-wheel
+        :param event:
+        :return:
+        """
+        base_scale = 2.
+        # get the current x and y limits
+        ax = self.figure.axes[0]
+        cur_x_lim = ax.get_xlim()
+        cur_y_lim = ax.get_ylim()
+        cur_x_range = (cur_x_lim[1] - cur_x_lim[0]) * .5
+        cur_y_range = (cur_y_lim[1] - cur_y_lim[0]) * .5
+        x_data = event.xdata  # get event x location
+        y_data = event.ydata  # get event y location
+        if event.button == 'up':
+            # deal with zoom in
+            scale_factor = 1 / base_scale
+        elif event.button == 'down':
+            # deal with zoom out
+            scale_factor = base_scale
+        else:
+            # deal with something that should never happen
+            scale_factor = 1
+        # set new limits
+        ax.set_xlim([x_data - cur_x_range * scale_factor,
+                     x_data + cur_x_range * scale_factor])
+        ax.set_ylim([y_data - cur_y_range * scale_factor,
+                     y_data + cur_y_range * scale_factor])
+        self.canvas.draw()
+
 
 class SliderLineEditLayout(QtWidgets.QHBoxLayout):
     def __init__(self, parent=None):
@@ -379,11 +509,11 @@ class SliderLineEditLayout(QtWidgets.QHBoxLayout):
         try:
             self.slider_bar.valueChanged.connect(
                 lambda: self.line_edit.setText(
-                    str(self.slider_bar.value()/100))
+                    str(self.slider_bar.value() / 100))
             )
             self.line_edit.textChanged.connect(
                 lambda: self.slider_bar.setValue(
-                    float(self.line_edit.text())*100)
+                    float(self.line_edit.text()) * 100)
             )
         except ValueError:
             pass
@@ -391,5 +521,6 @@ class SliderLineEditLayout(QtWidgets.QHBoxLayout):
         self.width = 0.05
 
         self.slider_bar.valueChanged.connect(
-            lambda: setattr(self, "width", float(self.slider_bar.value()/100))
+            lambda: setattr(self, "width",
+                            float(self.slider_bar.value() / 100))
         )

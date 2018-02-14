@@ -158,7 +158,7 @@ class ProcModule(Module):
         pass
 
     def _configuration_close(self, event):
-        self._repaint("")
+        self.repaint("")
         event.accept()
 
     @abc.abstractmethod
@@ -166,10 +166,10 @@ class ProcModule(Module):
         pass
 
     @abc.abstractmethod
-    def _repaint(self, msg):
+    def repaint(self, msg):
         pass
 
-    def _save_image(self):
+    def save_image(self):
         plt.figure(self.figure.number)
         tp_d = self.figure.canvas.get_supported_filetypes()
         filter_s = ";;".join(["{0} (*.{1})".format(tp_d[i], i) for i in tp_d])
@@ -191,7 +191,7 @@ class ProcModule(Module):
     @abc.abstractmethod
     def plot(self):
         self.figure.clf()
-        self._repaint("")
+        self.repaint("")
 
         self.plot_widget.show()
 
@@ -216,7 +216,7 @@ class BasicToolBar(QtWidgets.QToolBar):
         self.addAction(
             QtGui.QIcon(QtGui.QPixmap('icons/save.png')),
             "Save Image...",
-            parent._save_image,
+            parent.save_image,
         )
         self.addAction(
             QtGui.QIcon(QtGui.QPixmap('icons/export_data.png')),

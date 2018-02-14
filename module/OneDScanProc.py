@@ -63,7 +63,7 @@ class OneDScanProc(ProcModule):
         self.plot_widget.setLayout(self.layout)
         self.plot_widget.closeEvent = self.closeEvent
 
-        self.refresh_canvas.connect(self._repaint)
+        self.refresh_canvas.connect(self.repaint)
 
     def _build_config_widget(self):
         config_widget = QtWidgets.QWidget(self.plot_widget)
@@ -91,7 +91,7 @@ class OneDScanProc(ProcModule):
         self.q_tab_widget.show()
 
     def _configuration_close(self, event):
-        self._repaint(True)
+        self.repaint(True)
         event.accept()
 
     def _export_data(self):
@@ -110,7 +110,7 @@ class OneDScanProc(ProcModule):
                 file_handle.write("{0}, {1}".format(i, k) + os.linesep)
 
     @QtCore.pyqtSlot(bool)
-    def _repaint(self, message=True):
+    def  repaint(self, message=True):
         logging.debug("Re-Paint Main Image")
         plt.figure(self.figure.number)
         if message:
@@ -136,7 +136,7 @@ class OneDScanProc(ProcModule):
     def plot(self):
         """Plot Image."""
         self.figure.clf()
-        self._repaint(True)
+        self.repaint(True)
 
         self.plot_widget.show()
 
@@ -209,7 +209,7 @@ class OneDScanProc(ProcModule):
         f = lambda a, b: (len(a) > len(b) and (a[:len(b)], b)) or (a, b[:len(a)])
         (x, y) = f(x, y)
         self.data = np.vstack((x, y))
-        self._repaint(True)
+        self.repaint(True)
 
     def _fit(self, fit_fun='pseudo voigt', is_plot=True):
         """

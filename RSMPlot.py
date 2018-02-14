@@ -1,14 +1,14 @@
 import logging
-
 import os
-from PyQt5 import QtWidgets
+
+from PyQt5 import QtWidgets, QtCore
 
 from module.OneDScanProc import OneDScanProc
 from module.PolesFigureProc import PolesFigureProc
+from module.RCurveProc import RCurveProc
 from module.RSMProc import RSMProc
 from module.RawFile import RawFile
 from module.UxdFile import UxdFile
-from module.RCurveProc import RCurveProc
 
 SCAN_DICT = {
     "RSMPlot": RSMProc,
@@ -42,6 +42,15 @@ class UI(object):
         self.menu_bar.addMenu(self.menu_file)
         parent.setMenuBar(self.menu_bar)
 
+        parent.setWindowTitle("RSMPlot")
+
+        self.layout = QtWidgets.QHBoxLayout()
+
+        self.status_bar = QtWidgets.QStatusBar()
+        self.layout.addWidget(self.status_bar, alignment=QtCore.Qt.AlignBottom)
+
+        parent.setLayout(self.layout)
+
 
 class ProgramInterface(QtWidgets.QMainWindow):
     def __init__(self):
@@ -65,10 +74,10 @@ class ProgramInterface(QtWidgets.QMainWindow):
             self.setCentralWidget(self.main_scan.plot_widget)
 
             self.main_scan.set_data(data, attr)
-            self.main_scan._repaint("")
+            self.main_scan.repaint("")
 
             self.ui.action_save_main_image.triggered.connect(
-                self.main_scan._save_image)
+                self.main_scan.save_image)
 
 
 if __name__ == '__main__':

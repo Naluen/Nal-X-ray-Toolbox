@@ -28,8 +28,7 @@ TBL_STEPPING_DRIVERS = {
     12: ("psi scan", "TWOTHETA"),
     13: ("hkl scan", "TWOTHETA"),
     129: ("psd fixed scan", "TWOTHETA"),
-    130: ("psd fast scan"
-          "TWOTHETA")
+    130: ("psd fast scan", "TWOTHETA")
 }
 
 

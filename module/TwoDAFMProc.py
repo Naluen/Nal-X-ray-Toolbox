@@ -60,10 +60,10 @@ class TwoDAFMProc(ProcModule):
         self.plot_widget.setLayout(self.layout)
         self.plot_widget.closeEvent = self.closeEvent
 
-        self.refresh_canvas.connect(self._repaint)
+        self.refresh_canvas.connect(self.repaint)
 
     @QtCore.pyqtSlot(bool)
-    def _repaint(self, message):
+    def repaint(self, message):
         if "Auto-process" in self.param and self.param["Auto-process"]:
             self._sub_bk(False)
             self._align_rows(False)
@@ -82,7 +82,7 @@ class TwoDAFMProc(ProcModule):
     def plot(self):
         """Plot Image."""
         self.figure.clf()
-        self._repaint("")
+        self.repaint("")
         plt.colorbar()
 
         self.plot_widget.show()
