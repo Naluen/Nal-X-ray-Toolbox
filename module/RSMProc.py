@@ -47,6 +47,10 @@ class RSMProc(ProcModule):
         self._click_count = 0
         self._click_point_list = []
 
+        self.xi = None  # X axis data
+        self.yi = None  # Y axis data
+        self.zi = None  # Z axis data
+
     @property
     def name(self):
         return __name__.split('.')[-1]
@@ -156,7 +160,41 @@ class RSMProc(ProcModule):
         self.q_tab_widget.show()
 
     def _export_data(self):
-        pass
+        if self.xi is None:
+            return
+
+        data_file_name = QtWidgets.QFileDialog.getSaveFileName(
+            QtWidgets.QFileDialog(),
+            'Save Image file',
+            "/",
+            "Npz files (*.npz);;Txt File (*.txt)"
+        )
+        data_file_name = data_file_name[0]
+        if not data_file_name:
+            return
+
+        _, file_extension = os.path.splitext(data_file_name)
+        print(file_extension)
+
+        if file_extension.lower() == '.txt':
+            self._export_data2txt(data_file_name)
+        elif file_extension.lower() == '.npz':
+            self._export_data2npz(data_file_name)
+        else:
+            raise TypeError()
+
+    def _export_data2txt(self, data_file_name):
+        with open(data_file_name, 'w') as file_handle:
+            file_handle.write("x, y, intensity" + os.linesep)
+            zi = self.zi.copy().flatten()
+            xx, yy = np.meshgrid(self.xi, self.yi)
+            xi = xx.flatten()
+            yi = yy.flatten()
+            for i, j, k in zip(xi, yi, zi):
+                file_handle.write("{0}, {1}, {2}".format(i, j, k) + os.linesep)
+
+    def _export_data2npz(self, data_file_name):
+        np.savez(data_file_name, x=self.xi, y=self.yi, z=self.zi)
 
     @QtCore.pyqtSlot(bool)
     def repaint(self, message):
@@ -170,18 +208,18 @@ class RSMProc(ProcModule):
         # ====================================================================
 
         from scipy.interpolate import griddata
-        int_data = self.data
+        int_data = self.data.copy()
         w, h = int_data.shape
 
         try:
-            tth = self.attr['two_theta_data'][0]
+            tth = self.attr['two_theta_data'][0].copy()
         except KeyError:
-            tth = self.attr.get('TWOTHETA')
+            tth = self.attr.get('TWOTHETA').copy()
 
         try:
-            omega = self.attr.get('OMEGA')
+            omega = self.attr.get('OMEGA').copy()
         except KeyError:
-            omega = self.attr['omega_data']
+            omega = self.attr['omega_data'].copy()
         try:
             phi = self.attr['phi_data'][0]
         except KeyError:
@@ -464,7 +502,7 @@ class RSMProc(ProcModule):
         :param event:
         :return:
         """
-        base_scale = 2.
+        base_scale = 1.1
         # get the current x and y limits
         ax = self.figure.axes[0]
         cur_x_lim = ax.get_xlim()

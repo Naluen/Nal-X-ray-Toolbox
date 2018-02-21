@@ -99,7 +99,11 @@ class OneDScanProc(ProcModule):
             return
 
         data_file_name = QtWidgets.QFileDialog.getSaveFileName(
-            self.plot_widget, 'Save Image file', "/", "Txt File (*.txt)")
+            QtWidgets.QFileDialog(),
+            'Save Image file',
+            "/",
+            "Txt File (*.txt)"
+        )
         data_file_name = data_file_name[0]
         if not data_file_name:
             return
