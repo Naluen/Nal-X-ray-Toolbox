@@ -618,7 +618,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
         if not isinstance(proc_type, str):
             raise TypeError("Function only accept str type.")
-
+        print(proc_type)
         try:
             processor = self.cfg['TYPE_DICT'][proc_type]
         except KeyError:
