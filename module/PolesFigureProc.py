@@ -36,13 +36,14 @@ def _bragg_angle_cal(lattice, xtal_hkl):
 class PolesFigureProc(ProcModule):
     refresh_canvas = QtCore.pyqtSignal(bool)
 
-    def __init__(self):
-        super(PolesFigureProc, self).__init__()
+    def __init__(self, *args):
+        super(PolesFigureProc, self).__init__(*args)
 
         self.figure = plt.figure()
 
         self.param = OrderedDict([
             ('ADVANCED_SELECTION', False),
+            ('POLAR_AXIS', True),
             ('V_MIN', "10"),
             ('V_MAX', "1000"),
             ('THICKNESS', "900"),
@@ -63,11 +64,8 @@ class PolesFigureProc(ProcModule):
         return "PolesFigure",
 
     def _build_plot_widget(self):
-        self.canvas = FigureCanvas(self.figure)
-        self.canvas.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        super(PolesFigureProc, self)._build_plot_widget()
 
-        self._toolbar = BasicToolBar(self)
         self._toolbar.addAction(
             QtGui.QIcon(QtGui.QPixmap('icons/search.png')),
             "Auto search peak...",
@@ -79,7 +77,6 @@ class PolesFigureProc(ProcModule):
             self._int2fraction,
         )
 
-        self.plot_widget = QtWidgets.QWidget()
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.addWidget(self._toolbar)
         self.layout.addWidget(self.canvas)
@@ -94,12 +91,22 @@ class PolesFigureProc(ProcModule):
         config_layout = QtWidgets.QVBoxLayout()
         config_widget.setLayout(config_layout)
 
-        advanced_selection_q_radio_button = QtWidgets.QRadioButton(
+        """
+        If use advanced selection mode, then polygon instead of rectangle will 
+        be used for peak selection.
+        """
+        advanced_selection_q_checkbox = QtWidgets.QCheckBox(
             "Use Advanced Selection")
-        advanced_selection_q_radio_button.setChecked(
+        advanced_selection_q_checkbox.setChecked(
             self.param["ADVANCED_SELECTION"])
-        advanced_selection_q_radio_button.toggled.connect(
+        advanced_selection_q_checkbox.toggled.connect(
             partial(self._upt_param, "ADVANCED_SELECTION"))
+
+        polar_draw_q_checkbox = QtWidgets.QCheckBox("POLAR_AXIS")
+        polar_draw_q_checkbox.setChecked(
+            self.param["POLAR_AXIS"])
+        polar_draw_q_checkbox.toggled.connect(
+            partial(self._upt_param, "POLAR_AXIS"))
 
         intensity_input_layout = IntensityInputWidget(self.param)
 
@@ -158,7 +165,7 @@ class PolesFigureProc(ProcModule):
 
         phi_offset_input_layout = QtWidgets.QVBoxLayout()
         phi_offset_input_layout.addWidget(
-            QtWidgets.QLabel('Square Sx:'))
+            QtWidgets.QLabel('Phi offset:'))
         phi_offset_line_edit = QtWidgets.QLineEdit()
         phi_offset_line_edit.setText(self.param['PHI_OFFSET'])
         phi_offset_line_edit.setValidator(
@@ -168,8 +175,8 @@ class PolesFigureProc(ProcModule):
         )
         phi_offset_input_layout.addWidget(phi_offset_line_edit)
 
-
-        config_layout.addWidget(advanced_selection_q_radio_button)
+        config_layout.addWidget(advanced_selection_q_checkbox)
+        config_layout.addWidget(polar_draw_q_checkbox)
         config_layout.addLayout(intensity_input_layout)
         config_layout.addLayout(v_min_input_layout)
         config_layout.addLayout(v_max_input_layout)
@@ -206,29 +213,62 @@ class PolesFigureProc(ProcModule):
             ver_max = int(self.attr['DRV_2'].max())
             hor_min = int(self.attr['DRV_1'].min())
             hor_max = int(self.attr['DRV_1'].max())
+            phi_offset = int(self.param['PHI_OFFSET'])
         except KeyError:
             ver_min = np.int64(self.attr['phi_min'])
             ver_max = np.int64(self.attr['phi_max'])
             hor_min = np.int64(self.attr['khi_min'])
             hor_max = np.int64(self.attr['khi_max'])
+            phi_offset = np.int64(self.param['PHI_OFFSET'])
         plt.figure(self.figure.number)
-        ax2d = plt.gca()
-        im = ax2d.imshow(
-            self.data,
-            origin="lower",
-            norm=LogNorm(vmin=v_min, vmax=v_max),
-            extent=[ver_min, ver_max, hor_min, hor_max]
-        )
+        l, n = self.data.shape
 
-        ax2d.tick_params(axis='both', which='major', labelsize=10)
-        plt.colorbar(
-            im,
-            # fraction=0.012,
-            # pad=0.04,
-            format="%.e", extend='max',
-            ticks=np.logspace(1, np.log10(v_max), np.log10(v_max)),
-            orientation='horizontal',
-        )
+        if self.param["POLAR_AXIS"]:
+            ax2d = plt.gcf().add_subplot(111, polar=True)
+
+            xx, yy = np.meshgrid(
+                np.radians(np.linspace(ver_min, ver_max-1, n)+phi_offset),
+                np.linspace(hor_min, hor_max-1, l),
+            )
+            im = ax2d.pcolormesh(
+                xx,
+                yy,
+                self.data,
+                norm=LogNorm(vmin=v_min, vmax=v_max)
+            )
+
+            plt.colorbar(
+                im,
+                fraction=0.04,
+                # pad=0.04,
+                format="%.e", extend='max',
+                ticks=np.logspace(1, np.log10(int(v_max)),
+                                  np.log10(int(v_max))),
+                orientation='horizontal',
+            )
+        else:
+            ax2d = plt.gcf().add_subplot(111)
+            xx, yy = np.meshgrid(
+                np.linspace(ver_min, ver_max - 1, n)+phi_offset,
+                np.linspace(hor_min, hor_max - 1, l),
+            )
+            im = ax2d.pcolormesh(
+                xx,
+                yy,
+                self.data,
+                norm=LogNorm(vmin=v_min, vmax=v_max),
+            )
+
+            ax2d.tick_params(axis='both', which='major', labelsize=10)
+
+            plt.colorbar(
+                im,
+                # fraction=0.012,
+                # pad=0.04,
+                format="%.e", extend='max',
+                ticks=np.logspace(1, np.log10(int(v_max)), np.log10(int(v_max))),
+                orientation='horizontal',
+            )
 
         self.canvas.draw()
 
@@ -316,7 +356,6 @@ class PolesFigureProc(ProcModule):
             self.res = self._poly_pk_integrate()
         else:
             self.res = self._sq_pk_integrate()
-
 
     def _poly_pk_integrate(self, repaint=True):
         """
@@ -700,6 +739,7 @@ class PolesFigureProc(ProcModule):
 
         return _show_res_wd
 
+
 class Square(object):
     def __init__(
             self,
@@ -805,6 +845,7 @@ class Square(object):
             return True
         else:
             return False
+
 
 class IntensityInputWidget(QtWidgets.QVBoxLayout):
     def __init__(self, linked_param):

@@ -6,6 +6,9 @@ import numpy
 import numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
 from matplotlib import pyplot as plt
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvasQTAgg as FigureCanvas)
+
 
 class Module(QtCore.QObject):
     send_param = QtCore.pyqtSignal(dict)
@@ -106,7 +109,7 @@ class FileModule(Module):
 
 
 class ProcModule(Module):
-    def __init__(self):
+    def __init__(self, *args):
         super(ProcModule, self).__init__()
         self.param = {}
 
@@ -114,6 +117,7 @@ class ProcModule(Module):
         self.attr = None
 
         self.plot_widget = QtWidgets.QWidget()
+        self.plot_widget.setWindowTitle(args[0] if len(args) > 0 else "")
 
     @property
     def name(self):
@@ -149,9 +153,12 @@ class ProcModule(Module):
         self.send_param.emit(dict(self.attr))
         event.accept()
 
-    @abc.abstractmethod
     def _build_plot_widget(self):
-        pass
+        self.canvas = FigureCanvas(self.figure)
+        self.canvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                  QtWidgets.QSizePolicy.Expanding)
+
+        self._toolbar = BasicToolBar(self)
 
     @abc.abstractmethod
     def _configuration(self):
@@ -197,7 +204,7 @@ class ProcModule(Module):
 
         return self.plot_widget
 
-    def set_data(self, data, attr, *arg, **kwargs):
+    def set_data(self, data, attr, *args, **kwargs):
         self.data = data[()]
         self.attr = dict(attr)
         for i in self.param:

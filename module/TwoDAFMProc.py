@@ -10,8 +10,9 @@ from module.Module import ProcModule
 class TwoDAFMProc(ProcModule):
     refresh_canvas = QtCore.pyqtSignal(bool)
 
-    def __init__(self):
-        super(TwoDAFMProc, self).__init__()
+    def __init__(self, *args):
+        super(TwoDAFMProc, self).__init__(*args)
+
         self.param = {"Auto-process": False}
         self._build_plot_widget()
 
@@ -24,11 +25,8 @@ class TwoDAFMProc(ProcModule):
         return "raw_afm",
 
     def _build_plot_widget(self):
-        self.canvas = FigureCanvas(self.figure)
-        self.canvas.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        super(TwoDAFMProc, self)._build_plot_widget()
 
-        self._toolbar = QtWidgets.QToolBar()
         self._toolbar.setMinimumHeight(30)
 
         self._toolbar.addAction(
@@ -53,7 +51,6 @@ class TwoDAFMProc(ProcModule):
             self._align_rows,
         )
 
-        self.plot_widget = QtWidgets.QWidget()
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.addWidget(self._toolbar)
         self.layout.addWidget(self.canvas)

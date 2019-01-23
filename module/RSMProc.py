@@ -34,8 +34,10 @@ def _bragg_angle_cal(lattice, xtal_hkl):
 class RSMProc(ProcModule):
     refresh_canvas = QtCore.pyqtSignal(bool)
 
-    def __init__(self):
-        super(RSMProc, self).__init__()
+    def __init__(self, *args):
+
+        super(RSMProc, self).__init__(*args)
+
         self.param = {
             "OMEGA_SHIFT": "0",
             "ENABLE_ABSOLUTE_MODE": True
@@ -60,11 +62,7 @@ class RSMProc(ProcModule):
         return "RMS",
 
     def _build_plot_widget(self):
-        self.canvas = FigureCanvas(self.figure)
-        self.canvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                                  QtWidgets.QSizePolicy.Expanding)
-        # Main Plot ToolBar
-        self._toolbar = BasicToolBar(self)
+        super(RSMProc, self)._build_plot_widget()
 
         self._qpushbutton_enable_select_area = QtWidgets.QPushButton(
             QtGui.QIcon(QtGui.QPixmap("icons/select_area.png")),
@@ -122,7 +120,6 @@ class RSMProc(ProcModule):
         self._main_layout.addLayout(self._sub_left_layout)
         self._main_layout.addLayout(self._sub_right_layout)
 
-        self.plot_widget = QtWidgets.QWidget()
         self.plot_widget.setLayout(self._main_layout)
         self.plot_widget.closeEvent = self.closeEvent
         self.plot_widget.resize(1000, 600)

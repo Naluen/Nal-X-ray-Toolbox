@@ -11,10 +11,10 @@ from module.RawFile import RawFile
 
 class RCurveProc(OneDScanProc):
 
-    def __init__(self):
-        logging.debug("Building 1")
-        super().__init__()
-        logging.debug("building 2")
+    def __init__(self, *args):
+
+        super().__init__(*args)
+
         self.param.update({
             'THICKNESS': "900",
             'CHI': "11.24",
@@ -36,9 +36,15 @@ class RCurveProc(OneDScanProc):
         return "RockingCurve",
 
     def _build_plot_widget(self):
+        """
+        Build the drawing widget.
+        :return:
+        """
         super(RCurveProc, self)._build_plot_widget()
+
         filter_tool_button = QtWidgets.QToolButton()
 
+        # Build butter filter action
         butter_filter_action = QtWidgets.QAction(
             QtGui.QIcon(QtGui.QPixmap('icons/filter.png')),
             "Filter",
@@ -46,6 +52,7 @@ class RCurveProc(OneDScanProc):
         butter_filter_action.triggered.connect(self._filter)
         filter_tool_button.setDefaultAction(butter_filter_action)
 
+        # Build the filter selection menu
         filter_tool_button_menu = QtWidgets.QMenu()
         filter_tool_button_menu.addAction(
             "Butter Filter(Default)", self._filter
@@ -171,10 +178,7 @@ class RCurveProc(OneDScanProc):
         return self.plot_widget
 
     def set_data(self, data, attr, *args, **kwargs):
-        x = data[0, :][~np.isnan(data[1, :])]
-        y = data[1, :][~np.isnan(data[1, :])]
-        self.data = np.vstack((x, y))
-        self.attr = attr
+        super(RCurveProc, self).set_data(data, attr, *args, **kwargs)
         try:
             self.cfg = args[0]
         except IndexError:

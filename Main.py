@@ -100,7 +100,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.actionCopy.triggered.connect(self.copy_items)
         self.ui.actionPaste.triggered.connect(self.paste_items)
         self.ui.action_Detail.triggered.connect(self.detail_item)
-        self.ui.action_Plot.triggered.connect(self.plot_item)
+        self.ui.action_Plot.triggered.connect(self.plot_item)  # Plot action
         self.ui.actionAdd_Group.triggered.connect(self.add_grp)
 
         self.ui.actionInsert_Recipe.triggered.connect(self._insert_rcp)
@@ -309,7 +309,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
     def rename_item(self, f_path):
         c_path = self._item2h5(self.ui.treeWidget.selectedItems()[0])
-        print(c_path)
+
         if c_path in self.lib.fh:
             overwrite_alert = ConfirmInterface()
             overwrite_alert.set_text("Overwrite data in destiny group?")
@@ -409,7 +409,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         logging.debug("Recording data to h5 file...")
         h5_path = self._item2h5(self.ui.treeWidget.currentItem())
         data, attr, *_ = reader.get_data()
-        if "Type" not in attr:
+        if "TYPE" not in attr:
             self._error = QtWidgets.QErrorMessage(self)
             self._error.setWindowModality(QtCore.Qt.WindowModal)
             self._error.showMessage("Must set type for the data.")
@@ -520,8 +520,13 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.lib.fh.flush()
 
     def plot_item(self):
+        """
+        Build the drawing widget based on the data type.
+        :return:
+        """
         item = self.ui.treeWidget.currentItem()
         processor = self._get_data_processor(item)
+        logging.debug("Processor is {0}".format(processor))
 
         processor.send_param.connect(
             functools.partial(self.set_attr, prt=self._item2h5(item))
@@ -599,15 +604,21 @@ class ProgramInterface(QtWidgets.QMainWindow):
         return reader
 
     def _get_data_processor(self, item):
-        """Get the file reader class.
+        """Get the scan type reader class.
+        Read the h5 dataset, and identify the scan type of dataset based on the
+        type directory, and finally build and return a scan reader instance.
 
-        Return: Instant with file data imported.
+        Return: scan reader instance.
         """
         logging.debug("Start searching processor...")
+
         h5_path = self._item2h5(item)
-        proc_type = self.lib.fh[h5_path].attrs['Type']
+        _widget_title = h5_path  # The title of the widget
+        proc_type = self.lib.fh[h5_path].attrs['TYPE']
+
         if not isinstance(proc_type, str):
             raise TypeError("Function only accept str type.")
+
         try:
             processor = self.cfg['TYPE_DICT'][proc_type]
         except KeyError:
@@ -619,11 +630,11 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
         _tmp = __import__('module', globals(), locals(), [processor], 0)
 
-        processor = getattr(getattr(_tmp, processor), processor)()
+        processor = getattr(getattr(_tmp, processor), processor)(_widget_title)
         processor.set_data(
             self.lib.fh[h5_path],
             self.lib.fh[h5_path].attrs,
-            self.cfg[MODULE_G][self.cfg['TYPE_DICT'][proc_type]]
+            self.cfg[MODULE_G][self.cfg['TYPE_DICT'][proc_type]],
         )
 
         logging.debug("Successfully read file...")
@@ -738,7 +749,7 @@ if __name__ == '__main__':
     logging.basicConfig(
         # filename=os.path.join(
         #     os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
     )
     Program = QtWidgets.QApplication(sys.argv)

@@ -16,8 +16,8 @@ from module.Module import ProcModule
 class OneDScanProc(ProcModule):
     refresh_canvas = QtCore.pyqtSignal(bool)
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args):
+        super().__init__(*args)
 
         self._peak_side_point = []
 
@@ -35,11 +35,8 @@ class OneDScanProc(ProcModule):
         return "SingleScan"
 
     def _build_plot_widget(self):
-        self.canvas = FigureCanvas(self.figure)
-        self.canvas.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                                  QtWidgets.QSizePolicy.Expanding)
+        super(OneDScanProc, self)._build_plot_widget()
 
-        self._toolbar = BasicToolBar(self)
         # Fit tool button
         fit_tool_button = QtWidgets.QToolButton()
 
@@ -56,7 +53,6 @@ class OneDScanProc(ProcModule):
         fit_tool_button.setMenu(fit_tool_button_menu)
         self._toolbar.addWidget(fit_tool_button)
 
-        self.plot_widget = QtWidgets.QWidget()
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.addWidget(self._toolbar)
         self.layout.addWidget(self.canvas)
@@ -147,6 +143,7 @@ class OneDScanProc(ProcModule):
         return self.plot_widget
 
     def set_data(self, data, attr, *args, **kwargs):
+        super(OneDScanProc, self).set_data(data, attr, *args, **kwargs)
         x = data[0, :][~np.isnan(data[1, :])]
         y = data[1, :][~np.isnan(data[1, :])]
         self.data = np.vstack((x, y))

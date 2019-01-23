@@ -3,8 +3,10 @@ MODULE:
     name: FltFile
   H5File:
     name: H5File
-  PfProc:
-    name: PfProc
+  OneDScanProc:
+    name: OneDScanProc
+  PolesFigureProc:
+    name: PolesFigureProc
   RCurveProc:
     name: RCurveProc
     res_table_wd_size:
@@ -14,20 +16,18 @@ MODULE:
     name: RSMProc
   RawFile:
     name: RawFile
-  SinScaProc:
-    name: SinScaProc
   TwoDAFMProc:
     name: TwoDAFMProc
 PREFERENCE:
   GENERAL:
     db_lib_path: C:\Users\hang\Documents\GitHub\foton_report_genarator\lib\mat.h5
-    db_path: /Users/zhouang/Documents/Git/foton_report_genarator/lib/lib.h5
+    db_path: C:/Users/hang/Dropbox/Thesis/Experimental_Data/xrd_lib.h5
 TYPE_DICT:
   .flt: FltFile
   .h5: H5File
   .raw: RawFile
-  PolesFigure: PfProc
+  PolesFigurePlot: PolesFigureProc
   RSM: RSMProc
   RockingCurve: RCurveProc
-  SingleScan: SinScaProc
+  SingleScan: OneDScanProc
   raw_afm: TwoDAFMProc

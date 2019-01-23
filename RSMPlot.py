@@ -86,7 +86,7 @@ if __name__ == '__main__':
     logging.basicConfig(
         # filename=os.path.join(
         #     os.path.dirname(sys.argv[0]), 'log', __name__ + '.log'),
-        level=logging.ERROR,
+        level=logging.DEBUG,
         format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
     Program = QtWidgets.QApplication(sys.argv)
     MyProgram = ProgramInterface()
