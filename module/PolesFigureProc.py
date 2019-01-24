@@ -53,6 +53,9 @@ class PolesFigureProc(ProcModule):
             ('BEAM_INT', "100000"),
         ])
 
+        self.xi = None
+        self.yi = None
+
         self._build_plot_widget()
 
     @property
