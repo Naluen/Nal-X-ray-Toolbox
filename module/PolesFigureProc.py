@@ -1,17 +1,16 @@
 import logging
+import os
 from collections import OrderedDict
 from functools import partial
 
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
-from matplotlib.backends.backend_qt5agg import (
-    FigureCanvasQTAgg as FigureCanvas)
 from matplotlib.colors import LogNorm
 
-from module.Module import ProcModule, BasicToolBar
-from module.RawFile import RawFile
+from module.Module import ProcModule
 from module.OneDScanProc import OneDScanProc
+from module.RawFile import RawFile
 
 LAMBDA = 0.154055911278
 
@@ -200,7 +199,52 @@ class PolesFigureProc(ProcModule):
         self.q_tab_widget.show()
 
     def _export_data(self):
-        pass
+        if self.xi is None:
+            return
+
+        data_file_name = QtWidgets.QFileDialog.getSaveFileName(
+            QtWidgets.QFileDialog(),
+            'Save Image file',
+            "/",
+            "Npz files (*.npz);;Txt File (*.txt)"
+        )
+        data_file_name = data_file_name[0]
+        if not data_file_name:
+            return
+
+        _, file_extension = os.path.splitext(data_file_name)
+
+        if file_extension.lower() == '.txt':
+            self._export_data2txt(data_file_name)
+        elif file_extension.lower() == '.npz':
+            self._export_data2npz(data_file_name)
+        else:
+            raise TypeError()
+
+    def _export_data2txt(self, data_file_name):
+        with open(data_file_name, 'w') as file_handle:
+            file_handle.write("x, y, intensity" + os.linesep)
+            zi = self.data.copy()
+            xi = self.xi.copy()
+            yi = self.yi.copy()
+
+            zi = zi.copy().flatten()
+            xx, yy = np.meshgrid(xi, yi)
+            xi = xx.flatten()
+            yi = yy.flatten()
+            for i, j, k in zip(xi, yi, zi):
+                file_handle.write("{0}, {1}, {2}".format(i, j, k) + os.linesep)
+
+    def _export_data2npz(self, data_file_name):
+        zi = self.data.copy()
+        xi = self.xi.copy()
+        yi = self.yi.copy()
+        np.savez(
+            data_file_name,
+            x=xi,
+            y=yi,
+            z=zi
+        )
 
     @QtCore.pyqtSlot(bool)
     def repaint(self, message):
@@ -230,8 +274,8 @@ class PolesFigureProc(ProcModule):
             ax2d = plt.gcf().add_subplot(111, polar=True)
 
             xx, yy = np.meshgrid(
-                np.radians(np.linspace(ver_min, ver_max-1, n)+phi_offset),
-                np.linspace(hor_min, hor_max-1, l),
+                np.radians(np.linspace(ver_min, ver_max - 1, n) + phi_offset),
+                np.linspace(hor_min, hor_max - 1, l),
             )
             im = ax2d.pcolormesh(
                 xx,
@@ -252,7 +296,7 @@ class PolesFigureProc(ProcModule):
         else:
             ax2d = plt.gcf().add_subplot(111)
             xx, yy = np.meshgrid(
-                np.linspace(ver_min, ver_max - 1, n)+phi_offset,
+                np.linspace(ver_min, ver_max - 1, n) + phi_offset,
                 np.linspace(hor_min, hor_max - 1, l),
             )
             im = ax2d.pcolormesh(
@@ -269,7 +313,8 @@ class PolesFigureProc(ProcModule):
                 # fraction=0.012,
                 # pad=0.04,
                 format="%.e", extend='max',
-                ticks=np.logspace(1, np.log10(int(v_max)), np.log10(int(v_max))),
+                ticks=np.logspace(1, np.log10(int(v_max)),
+                                  np.log10(int(v_max))),
                 orientation='horizontal',
             )
 
@@ -469,7 +514,6 @@ class PolesFigureProc(ProcModule):
             hor_min = int(self.attr['DRV_1'].min())
             sq_sz_l = [int(self.param['SQUARE_SX']),
                        int(self.param['SQUARE_SY'])]
-
 
         if 'outer_index_list' in kwargs:
             ind_l = kwargs['outer_index_list']
