@@ -57,7 +57,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         except NotImplementedError as e:
             self._error = QtWidgets.QErrorMessage(self)
             self._error.setWindowModality(QtCore.Qt.WindowModal)
-            self._error.showMessage(str(e))
+            self._error.showMessage("Processor" + str(e) + "is lost.")
             self._error.accepted.connect(self.close)
             self._error.rejected.connect(self.close)
 
@@ -65,7 +65,9 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self._init_module()
         try:
             self._init_lib()
-        except (RuntimeError, OSError, KeyError):
+        except (RuntimeError, OSError, KeyError) as e:
+            logging.error(e)
+            logging.debug("Failed to init the library file.")
             conf = ConfirmInterface()
             conf.set_text(
                 "Lib has been damaged, \
@@ -82,6 +84,8 @@ class ProgramInterface(QtWidgets.QMainWindow):
                 self.cfg[PREFERENCE][GENERAL]['db_path'],
                 os.path.join(DIR, 'lib', 'bk_lib.h5')
             )
+        finally:
+            logging.debug("Library reading finished.")
 
         self.preference_inf = PreferenceInterface()
         self.preference_inf.upt_cfg.connect(self._upt_cfg)
@@ -102,9 +106,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.action_Detail.triggered.connect(self.detail_item)
         self.ui.action_Plot.triggered.connect(self.plot_item)  # Plot action
         self.ui.actionAdd_Group.triggered.connect(self.add_grp)
-
         self.ui.actionInsert_Recipe.triggered.connect(self._insert_rcp)
-
         self.ui.actionParameters.triggered.connect(self._open_pref)
 
         self.ui.treeWidget.header().close()
@@ -113,6 +115,8 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.treeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.ui.treeWidget.customContextMenuRequested.connect(
             self.tree_view_open_menu)
+
+        # Create a temp file.
 
         timer = QtCore.QTimer()
         timer.timeout.connect(self._write_cfg)
@@ -130,6 +134,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
             self.cfg[MODULE_G] = {}
         if "H5File" not in self.cfg[MODULE_G]:
             raise NotImplementedError("H5File package is lost.")
+        logging.debug("Package demands have been satisfied.")
 
     # Function of modules.
     def _init_module(self):
@@ -194,7 +199,6 @@ class ProgramInterface(QtWidgets.QMainWindow):
 
         :return:
         """
-
         path = 'db_path'
         lib_f = self.cfg[PREFERENCE][GENERAL][path]
         if not os.path.isfile(lib_f):
@@ -206,6 +210,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         try:
             self.lib = self._get_file_reader(lib_f)
         except TypeError as e:
+            logging.debug("The library file type is wrong.")
             self._error = QtWidgets.QErrorMessage(self)
             self._error.setWindowModality(QtCore.Qt.WindowModal)
             self._error.showMessage(str(e))
@@ -214,7 +219,6 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.ui.treeWidget.clear()
         root_item = QtWidgets.QTreeWidgetItem(self.ui.treeWidget)
         root_item.setText(0, '/')
-
         def post_order(g, l):
             for i in l.keys():
                 if hasattr(l[i], "keys"):
@@ -226,8 +230,8 @@ class ProgramInterface(QtWidgets.QMainWindow):
                     item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
 
         post_order(root_item, self.lib.fh)
-
         root_item.setExpanded(True)
+
 
         try:
             self._mat_lib = self._get_file_reader(
@@ -238,6 +242,8 @@ class ProgramInterface(QtWidgets.QMainWindow):
             self._mat_lib = self._get_file_reader(
                 self.cfg[PREFERENCE][GENERAL][MAT_LIB])
 
+        logging.debug("Successfully read the library file.")
+
             # self.view_sort(self.ui.treeWidget)
 
     def _add_data(self):
@@ -247,8 +253,12 @@ class ProgramInterface(QtWidgets.QMainWindow):
         :return:
         """
         raw_file_names = QtWidgets.QFileDialog.getOpenFileNames(
-            self, 'Open file',
-            "/")
+            self,
+            'Open file',
+            "/",
+            ("Image Files (*.raw *.uxd);;"
+             ),
+        )
         raw_file_names = raw_file_names[0]
         if not raw_file_names:
             return
@@ -286,13 +296,13 @@ class ProgramInterface(QtWidgets.QMainWindow):
         self.temp_confirm = ConfirmInterface()
         self.temp_confirm.set_text(
             "Would you like to delete {0}?".format(
-                *[i.text(0) for i in item_l]))
+                "\n"+", \n".join([i.text(0) for i in item_l])))
         self.temp_confirm.exec()
         if self.temp_confirm.get_bool():
             for item in item_l:
                 # Delete the item from h5file.
                 h5_path = self._item2h5(item)
-                logging.debug("Deleting {0}...".format(h5_path))
+                logging.debug("Deleting {0}.".format(h5_path))
                 del self.lib.fh[h5_path]
                 # Delete the item from qTreeWidget
                 (item.parent() or root).removeChild(item)
@@ -600,7 +610,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         reader = getattr(getattr(_tmp, reader_name), reader_name)()
         reader.get_file(file)
 
-        logging.debug("Successfully read file {0}...".format(file))
+        logging.debug("Successfully read file {0}.".format(file))
         return reader
 
     def _get_data_processor(self, item):
@@ -622,7 +632,7 @@ class ProgramInterface(QtWidgets.QMainWindow):
         try:
             processor = self.cfg['TYPE_DICT'][proc_type]
         except KeyError:
-            logging.error(proc_type)
+            logging.error("Unknown Type " + proc_type)
             raise TypeError(
                 "Unknown Type." +
                 "Please confirm this type is supported by at least one module."

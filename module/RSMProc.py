@@ -42,7 +42,7 @@ class RSMProc(ProcModule):
             "OMEGA_SHIFT": "0",
             "ENABLE_ABSOLUTE_MODE": True
         }
-        self.figure = plt.figure()
+        self.figure = plt.figure(figsize=(10, 10))
         self._build_plot_widget()
 
         self._lines = []
@@ -95,6 +95,7 @@ class RSMProc(ProcModule):
         self._sub_left_layout = QtWidgets.QVBoxLayout()
         self._sub_left_layout.addWidget(self._toolbar)
         self._sub_left_layout.addWidget(self.canvas)
+        self._sub_left_layout.addWidget(self._status_bar)
         # Slice Plot Widget
         self._x_slice = OneDScanProc()
         self._y_slice = OneDScanProc()
@@ -156,43 +157,6 @@ class RSMProc(ProcModule):
         self.q_tab_widget.closeEvent = self._configuration_close
         self.q_tab_widget.show()
 
-    def _export_data(self):
-        if self.xi is None:
-            return
-
-        data_file_name = QtWidgets.QFileDialog.getSaveFileName(
-            QtWidgets.QFileDialog(),
-            'Save Image file',
-            "/",
-            "Npz files (*.npz);;Txt File (*.txt)"
-        )
-        data_file_name = data_file_name[0]
-        if not data_file_name:
-            return
-
-        _, file_extension = os.path.splitext(data_file_name)
-        print(file_extension)
-
-        if file_extension.lower() == '.txt':
-            self._export_data2txt(data_file_name)
-        elif file_extension.lower() == '.npz':
-            self._export_data2npz(data_file_name)
-        else:
-            raise TypeError()
-
-    def _export_data2txt(self, data_file_name):
-        with open(data_file_name, 'w') as file_handle:
-            file_handle.write("x, y, intensity" + os.linesep)
-            zi = self.zi.copy().flatten()
-            xx, yy = np.meshgrid(self.xi, self.yi)
-            xi = xx.flatten()
-            yi = yy.flatten()
-            for i, j, k in zip(xi, yi, zi):
-                file_handle.write("{0}, {1}, {2}".format(i, j, k) + os.linesep)
-
-    def _export_data2npz(self, data_file_name):
-        np.savez(data_file_name, x=self.xi, y=self.yi, z=self.zi)
-
     @QtCore.pyqtSlot(bool)
     def repaint(self, message):
         # ====================================================================
@@ -238,7 +202,7 @@ class RSMProc(ProcModule):
             hkl = hkl[0]
         self.attr['HKL'] = np.asarray(hkl)
         tth, omega = np.meshgrid(tth, omega)
-        s_mod = 2. / LAMBDA * np.sin(np.radians(tth / 2.))
+        s_mod = 4.*np.pi / LAMBDA * np.sin(np.radians(tth / 2.)) / 10
         psi = omega - tth / 2.
         s_x = s_mod * np.sin(np.radians(psi))
         s_z = s_mod * np.cos(np.radians(psi))
@@ -258,21 +222,28 @@ class RSMProc(ProcModule):
         im = plt.imshow(
             zi,
             origin='lower',
-            norm=LogNorm(vmin=int_data.min() + 1, vmax=int_data.max()),
+            norm=LogNorm(10, 100),
             extent=[s_x.min(), s_x.max(),
                     s_z.min(), s_z.max()])
 
-        plt.xlabel("$S_x$")
-        plt.ylabel("$S_z$")
+        plt.xlabel("$Q_x$ ($Å^{-1}$)", fontsize=16)
+        plt.ylabel("$Q_z$ ($Å^{-1}$)", fontsize=16)
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+
+        # plt.gca().set_xlim(left=0.46, right=0.53)
+        # plt.gca().set_ylim(bottom=4.55, top=4.61)
 
         cb = self.figure.colorbar(
             im,
-            format="%.e",
+            format="%.2e",
             extend='max',
-            ticks=np.logspace(1, np.log10(int_data.max()),
-                              np.log10(int_data.max())),
+            # norm=LogNorm(10, 1000),
+            pad=.015,
+            fraction=.039
         )
-        cb.set_label(r'$Intensity\ (Counts\ per\ second)$', fontsize=12)
+        cb.ax.tick_params(labelsize=16)
+        cb.set_label(r'Intensity $(Counts\ per\ second)$', fontsize=16)
 
         self.xi = xi
         self.yi = yi
@@ -287,6 +258,8 @@ class RSMProc(ProcModule):
         self.repaint("")
 
         self.plot_widget.show()
+        self.canvas.mpl_connect(
+            'motion_notify_event', self.on_motion_show_data)
 
         return self.plot_widget
 
@@ -523,6 +496,13 @@ class RSMProc(ProcModule):
         ax.set_ylim([y_data - cur_y_range * scale_factor,
                      y_data + cur_y_range * scale_factor])
         self.canvas.draw()
+
+    def on_motion_show_data(self, event):
+        if event.inaxes != plt.gca():
+            return
+
+        self._status_bar.showMessage(
+            "({0:.2f}, {1:.2f} )".format(event.xdata, event.ydata))
 
 
 class SliderLineEditLayout(QtWidgets.QHBoxLayout):

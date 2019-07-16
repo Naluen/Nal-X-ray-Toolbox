@@ -138,7 +138,6 @@ class TwoDAFMProc(ProcModule):
         if repaint:
             self.refresh_canvas.emit(True)
 
-
     def _configuration(self):
         widget = self._build_widget()
         self.q_tab_widget = QtWidgets.QTabWidget()

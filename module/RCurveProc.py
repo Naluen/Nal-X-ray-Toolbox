@@ -1,5 +1,6 @@
 import logging
 from functools import partial
+import collections
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -188,26 +189,38 @@ class RCurveProc(OneDScanProc):
 
     @staticmethod
     def i_theory(i_0, v, theta, omega, th, index):
-        RO2 = 7.94E-30
-        LAMBDA = 1.5418E-10
-        F_GAP = 3249.001406
-        L = 1.846012265
-        P = 0.853276107
-        V_A = 5.4506E-10 ** 3
-        U = 1000000 / 37.6416
+        """
+
+        :param i_0: The source intensity
+        :param v: angular velocity
+        :param theta: tth/2(emergence angle)
+        :param omega: omega(incident angle)
+        :param th: thickness of sample
+        :param index: correction coefficient
+        :return:
+        """
+        RO2 = 7.94E-30  # scattering cross section of electron
+        LAMBDA = 1.5418E-10  # X-ray beam length
+        F_GAP = 12684.62554  # unit cell structure factor (GaP)
+        L = 1/np.sin(2*theta)  # Lorentz factor
+        P = (1+np.cos(2*theta)**2)/2  # Polarization factor
+        V_A = 5.4506E-10 ** 3  # volume of the crystal
+        U = 1000000 / 37.6416  # mu
         c_0 = (
                 np.sin(2 * theta - omega) /
                 (np.sin(2 * theta - omega) + np.sin(omega))
         )
         c_1 = (
-                1 - np.exp(
-            0 - U * th / 1E10 * (
-                    1 / np.sin(omega) + 1 / np.sin(2 * theta - omega)
-            )
+                1 -
+                np.exp(
+                    - U * th / 1E10 *
+                    (
+                        1 / np.sin(omega) + 1 / np.sin(2 * theta - omega)
+                    )
+                )
         )
-        )
-        c_2 = RO2 * LAMBDA ** 3 * F_GAP * P * L / V_A ** 2
 
+        c_2 = RO2 * LAMBDA ** 3 * F_GAP * P * L / V_A ** 2
         i_theo = i_0 * c_0 * c_1 * c_2 * index / (v * U)
 
         return i_theo
@@ -232,10 +245,14 @@ class RCurveProc(OneDScanProc):
 
         chi_input_layout = QtWidgets.QVBoxLayout()
         chi_input_layout.addWidget(
-            QtWidgets.QLabel('Thickness of Sample(\u212B):'))
+            QtWidgets.QLabel('CHI(\u00B0):'))
         chi_line_edit = QtWidgets.QLineEdit()
         chi_line_edit.setText(self.param['CHI'])
-        chi_line_edit.setValidator(QtGui.QIntValidator(0, 360, chi_line_edit))
+        chi_line_edit.setValidator(
+            QtGui.QDoubleValidator(
+                0., 360., 360000
+            )
+        )
         chi_line_edit.textChanged.connect(partial(self._upt_param, "CHI"))
         chi_input_layout.addWidget(chi_line_edit)
 
@@ -260,9 +277,10 @@ class RCurveProc(OneDScanProc):
         except KeyError:
             step_time = self.attr['STEP_TIME']
             step_size = self.attr['STEP_SIZE']
+        v = np.deg2rad(step_size) / step_time
         intensity = (
-                self._recent_fit_res[0] * self._recent_fit_res[1] *
-                step_time / step_size)
+                self._recent_fit_res[0] * self._recent_fit_res[1] /
+                step_size * step_time)
         two_theta = self._bragg_angle_cal(
             0.54505,
             (
@@ -271,17 +289,15 @@ class RCurveProc(OneDScanProc):
                 int(self.param['L'])
             )
         )
+        chi = float(self.param['CHI'])
         theta = two_theta / 2
         th = int(self.param['THICKNESS'])
-        bm_int = int(self.param['BEAM_INT'])
+        bm_int = int(float(self.param['BEAM_INT']))
         v = np.deg2rad(step_size) / step_time
-        omega = np.deg2rad(22)
-        theta = np.deg2rad(theta)
+        theta = np.pi/2 - np.arccos(np.cos(np.deg2rad(chi))*np.sin(np.deg2rad(theta)))
+        omega = theta
+        print(np.rad2deg(omega))
         i_theo_l = self.i_theory(bm_int, v, theta, omega, th, 1)
-        res_l = [intensity, i_theo_l, intensity / i_theo_l * 100, "",
-                 self._recent_fit_res[1],
-                 self._recent_fit_res[0], "", bm_int, v, np.rad2deg(theta),
-                 np.rad2deg(omega), th]
 
         self.res_table_wd = QtWidgets.QTableWidget()
         try:
@@ -290,18 +306,32 @@ class RCurveProc(OneDScanProc):
         except (AttributeError, KeyError):
             pass
         self.res_table_wd.setColumnCount(1)
-        self.res_table_wd.setRowCount(11)
+        self.res_table_wd.setRowCount(12)
 
-        self.res_table_wd.setVerticalHeaderLabels(
-            ["Intensity", "Intensity theory", "Volume Fraction(%)", "",
-             "FWHM", "Max", "", "Source Intensity", "Angular Vitesse",
-             "Theta", "Omega", "Thickness"]
+        res_dic = collections.OrderedDict(
+            [
+                ("Integrated Int (Fitted curve) (cp)", intensity),
+                ("Integrated Int (cp)", self._sum() / step_size * step_time),
+                ("Intensity theory (cp)", i_theo_l),
+                ("Volume Fraction(%)", intensity / i_theo_l * 100),
+                ("", ""),
+                ("FWHM", self._recent_fit_res[1]),
+                ("Max", self._recent_fit_res[0]),
+                ("", ""),
+                ("Source Intensity", bm_int),
+                ("Angular Vitesse", v),
+                ("Theta", np.rad2deg(theta)),
+                ("Omega", np.rad2deg(omega)),
+                ("Thickness", th)
+            ]
         )
 
-        for i in range(len(res_l)):
+        self.res_table_wd.setVerticalHeaderLabels(list(res_dic.keys()))
+
+        for idx, key in enumerate(res_dic):
             self.res_table_wd.setItem(
-                i, 0,
-                QtWidgets.QTableWidgetItem(str(res_l[i]))
+                idx, 0,
+                QtWidgets.QTableWidgetItem(str(res_dic[key]))
             )
 
         # self.res_table_wd.closeEvent = self._res_table_wd_close
@@ -355,7 +385,7 @@ class IntensityInputWidget(QtWidgets.QVBoxLayout):
         if not source_file_list:
             return
         int_l = [file2int(str(i)) for i in source_file_list]
-        beam_int = np.mean(np.asarray(int_l))
+        beam_int = np.mean(np.asarray(int_l))*8940
         self._int_line_edit.setText(str(beam_int))
 
 

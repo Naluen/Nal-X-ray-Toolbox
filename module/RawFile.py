@@ -63,6 +63,7 @@ class RawFile(FileModule):
         step_code = scans[0]._STEPPING_DRIVE_CODE
 
         if step_code in (129, 130):
+            # RSM Scan
             attr['STEPS'] = int(scans[0].STEPS)
             attr['STEP_SIZE'] = float(scans[0].STEP_SIZE)
             theta_start = float(scans[0].TWOTHETA)
@@ -162,7 +163,7 @@ class RawFile(FileModule):
                     if attr['STEPPING_DRIVE2'] == 'PHI':
                         attr['TYPE'] = 'PolesFigurePlot'
                         attr['VIT_ANGLE'] = float(
-                            (scans[0].PHI - scans[1].PHI) / scans[0].STEP_TIME)
+                            scans[0].STEP_SIZE / scans[0].STEP_TIME)
 
         return data, attr
 

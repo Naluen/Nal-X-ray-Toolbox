@@ -6,13 +6,20 @@ from functools import partial
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
+import io
 from matplotlib.colors import LogNorm
 
 from module.Module import ProcModule
 from module.OneDScanProc import OneDScanProc
 from module.RawFile import RawFile
 
-LAMBDA = 0.154055911278
+RO2 = 7.94E-30
+LAMBDA = 1.5418E-10  # Cu-1 wavelength
+F_GAP = 3249.001406
+L = 1.846012265  # Lorentz factor
+P = 0.853276107  # Polarization factor
+V_A = 5.4505E-10 ** 3  # GaP cell volume
+U = 1000000 / 37.6416
 
 
 def _bragg_angle_cal(lattice, xtal_hkl):
@@ -23,10 +30,9 @@ def _bragg_angle_cal(lattice, xtal_hkl):
     >>> hkl_d = {i: _bragg_angle_cal(0.54505, i) for i in hkl_l}
     >>> assert abs(hkl_d[(0, 0, 2)]-32.8) < 0.1
     """
-
     rms = lambda x: np.sqrt(np.sum(np.asarray(x) ** 2))
     bragg_angle = np.arcsin(
-        LAMBDA / (2 * lattice / rms(xtal_hkl))
+        LAMBDA / (2 * lattice * 1E-9 / rms(xtal_hkl))
     )
 
     return np.rad2deg(bragg_angle) * 2
@@ -54,6 +60,7 @@ class PolesFigureProc(ProcModule):
 
         self.xi = None
         self.yi = None
+        self._gridded_flag = False
 
         self._build_plot_widget()
 
@@ -82,6 +89,8 @@ class PolesFigureProc(ProcModule):
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.addWidget(self._toolbar)
         self.layout.addWidget(self.canvas)
+        self.layout.addWidget(self._status_bar)
+
         self.plot_widget.setLayout(self.layout)
         self.plot_widget.resize(1000, 400)
         self.plot_widget.closeEvent = self.closeEvent
@@ -198,56 +207,15 @@ class PolesFigureProc(ProcModule):
         self.q_tab_widget.closeEvent = self._configuration_close
         self.q_tab_widget.show()
 
-    def _export_data(self):
-        if self.xi is None:
-            return
-
-        data_file_name = QtWidgets.QFileDialog.getSaveFileName(
-            QtWidgets.QFileDialog(),
-            'Save Image file',
-            "/",
-            "Npz files (*.npz);;Txt File (*.txt)"
-        )
-        data_file_name = data_file_name[0]
-        if not data_file_name:
-            return
-
-        _, file_extension = os.path.splitext(data_file_name)
-
-        if file_extension.lower() == '.txt':
-            self._export_data2txt(data_file_name)
-        elif file_extension.lower() == '.npz':
-            self._export_data2npz(data_file_name)
-        else:
-            raise TypeError()
-
-    def _export_data2txt(self, data_file_name):
-        with open(data_file_name, 'w') as file_handle:
-            file_handle.write("x, y, intensity" + os.linesep)
-            zi = self.data.copy()
-            xi = self.xi.copy()
-            yi = self.yi.copy()
-
-            zi = zi.copy().flatten()
-            xx, yy = np.meshgrid(xi, yi)
-            xi = xx.flatten()
-            yi = yy.flatten()
-            for i, j, k in zip(xi, yi, zi):
-                file_handle.write("{0}, {1}, {2}".format(i, j, k) + os.linesep)
-
-    def _export_data2npz(self, data_file_name):
-        zi = self.data.copy()
-        xi = self.xi.copy()
-        yi = self.yi.copy()
-        np.savez(
-            data_file_name,
-            x=xi,
-            y=yi,
-            z=zi
-        )
-
     @QtCore.pyqtSlot(bool)
     def repaint(self, message):
+        from scipy.interpolate import griddata
+        """
+        This function is called when the canvas need repainting(including the
+        first time painting).
+        :param message:
+        :return:
+        """
         self.figure.clf()
         try:
             v_max = self.attr['V_MAX']
@@ -268,42 +236,90 @@ class PolesFigureProc(ProcModule):
             hor_max = np.int64(self.attr['khi_max'])
             phi_offset = np.int64(self.param['PHI_OFFSET'])
         plt.figure(self.figure.number)
-        l, n = self.data.shape
+        h, v = self.data.shape
+        x = np.arange(ver_min, ver_max + 1, 1)
+        y = np.arange(hor_min, hor_max + 1, 1)
+
+        xx, yy = np.meshgrid(
+            x,
+            y,
+        )
+        x_r = np.linspace(ver_min, ver_max, v)
+        y_r = np.linspace(hor_min, hor_max, h)
+        xx_r, yy_r = np.meshgrid(
+            x_r,
+            y_r
+        )
+        self._gridded_data = griddata(
+            (xx_r.flatten(), yy_r.flatten()),
+            self.data.flatten(),
+            (xx, yy),
+            method='nearest',
+        )
+        logging.info("Gridded")
 
         if self.param["POLAR_AXIS"]:
             ax2d = plt.gcf().add_subplot(111, polar=True)
 
             xx, yy = np.meshgrid(
-                np.radians(np.linspace(ver_min, ver_max - 1, n) + phi_offset),
-                np.linspace(hor_min, hor_max - 1, l),
-            )
-            im = ax2d.pcolormesh(
-                xx,
-                yy,
-                self.data,
-                norm=LogNorm(vmin=v_min, vmax=v_max)
+                np.radians(np.arange(ver_min, ver_max + 1, 1) + phi_offset),
+                np.arange(hor_min, hor_max + 1, 1),
             )
 
-            plt.colorbar(
-                im,
-                fraction=0.04,
-                # pad=0.04,
-                format="%.e", extend='max',
-                ticks=np.logspace(1, np.log10(int(v_max)),
-                                  np.log10(int(v_max))),
-                orientation='horizontal',
-            )
-        else:
-            ax2d = plt.gcf().add_subplot(111)
-            xx, yy = np.meshgrid(
-                np.linspace(ver_min, ver_max - 1, n) + phi_offset,
-                np.linspace(hor_min, hor_max - 1, l),
-            )
+            minim = 1
+            maxim = 10000
             im = ax2d.pcolormesh(
                 xx,
                 yy,
-                self.data,
+                self._gridded_data,
+                norm=LogNorm(vmin=minim, vmax=maxim)
+            )
+
+            ax2d.tick_params(
+                axis="y",
+                labelsize=14,
+                labelcolor="white"
+            )
+            ax2d.tick_params(
+                axis="x",
+                labelsize=22,
+                pad=15
+            )
+            ax2d.set_rmin(0.)
+            ax2d.grid(color="white")
+
+            ax2d.tick_params(axis='both', which='major', labelsize=16)
+
+            cbar = plt.colorbar(
+                im,
+                fraction=0.04,
+                format="%.e",
+                extend='max',
+                ticks=np.logspace(
+                    1,
+                    np.log10(float(maxim)),
+                    np.log10(float(maxim)),
+                ),
+                orientation='horizontal',
+            )
+            cbar.ax.tick_params(labelsize=22)
+
+        else:
+            ax2d = plt.gcf().add_subplot(111)
+            x = np.arange(ver_min, ver_max + 1, 1)
+            y = np.arange(hor_min, hor_max + 1, 1)
+
+            xx, yy = np.meshgrid(
+                x,
+                y,
+            )
+
+            im = ax2d.pcolormesh(
+                xx,
+                yy,
+                self._gridded_data,
                 norm=LogNorm(vmin=v_min, vmax=v_max),
+                alpha=0.5,
             )
 
             ax2d.tick_params(axis='both', which='major', labelsize=10)
@@ -319,6 +335,8 @@ class PolesFigureProc(ProcModule):
             )
 
         self.canvas.draw()
+        self.cidmotion = self.canvas.mpl_connect(
+            'motion_notify_event', self.on_motion_show_data)
 
     # External methods.
     def plot(self):
@@ -331,26 +349,38 @@ class PolesFigureProc(ProcModule):
 
     @staticmethod
     def i_theory(i_0, v, theta, omega, th, index):
-        RO2 = 7.94E-30
-        LAMBDA = 1.5418E-10
-        F_GAP = 3249.001406
-        L = 1.846012265
-        P = 0.853276107
-        V_A = 5.4506E-10 ** 3
-        U = 1000000 / 37.6416
+        """
+
+        :param i_0: The source intensity
+        :param v: angular velocity
+        :param theta: tth/2(emergence angle)
+        :param omega: omega(incident angle)
+        :param th: thickness of sample
+        :param index: correction coefficient
+        :return:
+        """
+        RO2 = 7.94E-30  # scattering cross section of electron
+        LAMBDA = 1.5418E-10  # X-ray beam length
+        F_GAP = 12684.62554  # unit cell structure factor (GaP)
+        L = 1 / np.sin(2 * theta)  # Lorentz factor
+        P = (1 + np.cos(2 * theta) ** 2) / 2  # Polarization factor
+        V_A = 5.4506E-10 ** 3  # volume of the crystal
+        U = 1000000 / 37.6416  # mu
         c_0 = (
                 np.sin(2 * theta - omega) /
                 (np.sin(2 * theta - omega) + np.sin(omega))
         )
         c_1 = (
-                1 - np.exp(
-            0 - U * th / 1E10 * (
-                    1 / np.sin(omega) + 1 / np.sin(2 * theta - omega)
-            )
+                1 -
+                np.exp(
+                    - U * th / 1E10 *
+                    (
+                            1 / np.sin(omega) + 1 / np.sin(2 * theta - omega)
+                    )
+                )
         )
-        )
-        c_2 = RO2 * LAMBDA ** 3 * F_GAP * P * L / V_A ** 2
 
+        c_2 = RO2 * LAMBDA ** 3 * F_GAP * P * L / V_A ** 2
         i_theo = i_0 * c_0 * c_1 * c_2 * index / (v * U)
 
         return i_theo
@@ -367,6 +397,19 @@ class PolesFigureProc(ProcModule):
         for square in self.res[2]:
             if [event.xdata, event.ydata] in square:
                 self._selected_square.append(square)
+
+    def on_motion_show_data(self, event):
+        if event.inaxes != plt.gca():
+            return
+        if self.param['POLAR_AXIS']:
+            self._status_bar.showMessage(
+                "({0:.2f}\u00B0, {1:.2f}\u00B0)".format(
+                    np.rad2deg(event.xdata),
+                    event.ydata
+                ))
+        else:
+            self._status_bar.showMessage(
+                "({0:.2f}\u00B0, {1:.2f}\u00B0)".format(event.xdata, event.ydata))
 
     def _on_motion(self, event):
         if not hasattr(self, '_selected_square'):
@@ -425,12 +468,12 @@ class PolesFigureProc(ProcModule):
         from skimage import feature
 
         n, bins = np.histogram(
-            self.data.ravel(),
-            bins=int(self.data.max() - self.data.min()),
+            self._gridded_data.ravel(),
+            bins=int(self._gridded_data.max() - self._gridded_data.min()),
         )
         bk_int = bins[np.argmax(n)]
 
-        image = img_as_float(self.data)
+        image = img_as_float(self._gridded_data)
         try:
             ver_min = int(self.attr['DRV_2'].min())
             ver_max = int(self.attr['DRV_2'].max())
@@ -455,37 +498,37 @@ class PolesFigureProc(ProcModule):
         bw = closing(image > thresh, square(3))
         # Remove area connected to bord.
         cleared = clear_border(bw)
+
         # label area.
         label_image = label(cleared)
-
         l, w = image.shape
         binary_img = np.zeros(shape=(l, w))
         int_vsot_bg_m = []
         ind_l = []
-        for i in regionprops(label_image, self.data):
+        for i in regionprops(label_image, self._gridded_data):
             if i.area >= 100:
                 for k in i.coords:
-                    binary_img[k[0], k[1] + ver_min] = 1
-                int_vsot_bg_m.append(
-                    np.sum(i.intensity_image) - i.area * bk_int)
-                ind_l.append(i.weighted_centroid)
+                    int_sum = np.sum(i.intensity_image) - i.area * bk_int
+                    if int_sum > 0:
+                        binary_img[k[0] + hor_min, k[1] + ver_min] = 1
+                        int_vsot_bg_m.append(int_sum)
+                        ind_l.append(i.weighted_centroid)
         int_vsot_bg_m = np.asarray(int_vsot_bg_m)
 
         # Draw edge of peaks.
         edges2 = feature.canny(binary_img, sigma=2)  # Find the edge.
         edge = np.full([l, w], np.nan)  # Create new image and fill with nan.
-        edge[np.where(edges2 > 1e-2)] = 1  # Set edge to 1.
+        edge[np.where(edges2 > 1e-2)] = 100000000  # Set edge to 1.
 
         plt.figure(self.figure.number)
-        self.repaint(True)
+        # plt.clf()
         plt.imshow(
             np.roll(np.roll(edge, -hor_min, axis=0), -ver_min, axis=1),
             origin='lower',
-            cmap=plt.get_cmap('binary'),
-            extent=[ver_min, ver_max, hor_min, hor_max]
+            extent=[ver_min, ver_max, hor_min, hor_max],
         )
-        if repaint:
-            self.canvas.draw()
+        self.canvas.draw()
+
         return int_vsot_bg_m, ind_l
 
     def _sq_pk_integrate(self, repaint=True, **kwargs):
@@ -503,7 +546,7 @@ class PolesFigureProc(ProcModule):
         ind_l: The middle position of square. Same format as outer_index_list.
         sq_ins_l: The square plot handle.
         """
-        int_data = self.data
+        int_data = self._gridded_data
         try:
             ver_min = np.int64(self.attr['phi_min'])
             hor_min = np.int64(self.attr['khi_min'])
@@ -530,25 +573,23 @@ class PolesFigureProc(ProcModule):
             )
             for i in ind_l
         ]
-        ot_sq_l = [
-            Square(
-                i,
-                [i + 4 for i in sq_sz_l],
-                int_m=int_data,
-                lm_t=(ver_min, hor_min),
-                color='C1',
-            )
-            for i in ind_l
-        ]
         # Draw squares.
         if repaint:
             [i.plot() for i in in_sq_l]
-            [i.plot() for i in ot_sq_l]
 
         logging.debug("Square size - {0}".format(sq_sz_l))
         logging.debug("Square centre - {0}".format(ind_l))
-        int_vsot_bg_m = np.asarray([i - k for (i, k) in zip(in_sq_l, ot_sq_l)])
-        sq_ins_l = in_sq_l + ot_sq_l
+
+        n, bins = np.histogram(
+            self._gridded_data.ravel(),
+            bins=int(self._gridded_data.max() - self._gridded_data.min()),
+        )
+        bk_int = bins[np.argmax(n)]
+
+        logging.info("Background Intensity: {0}".format(bk_int))
+
+        int_vsot_bg_m = np.asarray([i - bk_int for i in in_sq_l])
+        sq_ins_l = in_sq_l
         if repaint:
             self.canvas.draw()
 
@@ -595,7 +636,7 @@ class PolesFigureProc(ProcModule):
             )
             return sorted_index_list
 
-        int_data_m = self.data
+        int_data_m = self._gridded_data
         try:
             ver_min = np.int64(self.attr['phi_min'])
             hor_min = np.int64(self.attr['khi_min'])
@@ -634,6 +675,9 @@ class PolesFigureProc(ProcModule):
                         ][-4:]
         ft_index_list = sort_index_list(ft_index_list)
 
+        while len(ft_index_list) < 4:
+            ft_index_list.append([0, 0])
+
         return ft_index_list
 
     # Intensity to volume fraction
@@ -662,10 +706,13 @@ class PolesFigureProc(ProcModule):
             (np.pi / 2 - np.arccos(
                 np.cos(np.deg2rad(chi[1])) * np.sin(np.deg2rad(14.22))))
             for chi in ind_l]
-        i_theo_l = [
-            self.i_theory(bm_int, v, i, i, th, 1) for i in omega]
+        cor_eff = [334.3835417, 437.8887181, 702.504497, 583.5963464]
 
-        volume_fraction_matrix = int_vsot_bg_m / i_theo_l * 100
+        i_theo_l = [
+            self.i_theory(bm_int, v, i, i, th, k) for i, k in zip(omega, cor_eff)]
+
+        # volume_fraction_matrix = int_vsot_bg_m / i_theo_l * 100
+        volume_fraction_matrix = int_vsot_bg_m * np.asarray([5.741E-05, 4.828E-05, 3.203E-05, 3.537E-05])
 
         self._show_res_wd = self._res_dialog(
             int_vsot_bg_m,
@@ -673,9 +720,11 @@ class PolesFigureProc(ProcModule):
         )
         self._show_res_wd.show()
 
-        logging.debug("Beam Intensity is {0}".format(bm_int))
+        logging.info("Theorical Intensity is {0}".format(i_theo_l))
         logging.debug("Sample th is {0}\n".format(th))
-        logging.debug("Peak intensity is {0}".format(volume_fraction_matrix))
+        logging.info("Beam intensity is {0}".format(bm_int))
+        logging.info("VF is {0}".format(volume_fraction_matrix))
+        logging.info("Chi is {0}".format(ind_l))
 
     def _fraction_calculation_param_dialog(self):
         q_dialog = QtWidgets.QDialog()
@@ -742,7 +791,7 @@ class PolesFigureProc(ProcModule):
 
         i_l = list(int_vsot_bg_m.tolist())
         i_l.append(np.sum(int_vsot_bg_m))
-        i_l = list(map(partial(round, ndigits=2), i_l))
+        i_l = list(map(partial(round, ndigits=4), i_l))
         for i in range(len(i_l)):
             q_table.setItem(
                 0, i,
@@ -796,8 +845,8 @@ class Square(object):
             lm_t=(0, 0),
             color='b',
     ):
-        self.cr_l = cr_l
-        self.sz_t = sz_t
+        self.cr_l = cr_l  # Centre position of the square
+        self.sz_t = sz_t  # Size of the square
         self.int_m = int_m
         self.lm_t = lm_t
         self.color = color
@@ -875,6 +924,10 @@ class Square(object):
             bg_noise_float = (pk_int - x_pk_int) / (pk_pt - x_pk_pt)
 
             return pk_int - pk_pt * bg_noise_float
+        elif isinstance(x, (float, int, np.int, np.float)):
+            pk_int = self.intensity_image
+            pk_pt = self.points
+            return pk_int - pk_pt * x
         else:
             return NotImplemented
 
@@ -933,5 +986,5 @@ class IntensityInputWidget(QtWidgets.QVBoxLayout):
         if not source_file_list:
             return
         int_l = [file2int(str(i)) for i in source_file_list]
-        beam_int = np.mean(np.asarray(int_l))
+        beam_int = np.mean(np.asarray(int_l))*8940
         self._int_line_edit.setText(str(beam_int))

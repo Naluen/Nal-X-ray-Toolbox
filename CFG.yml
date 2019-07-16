@@ -27,7 +27,7 @@ TYPE_DICT:
   .h5: H5File
   .raw: RawFile
   PolesFigurePlot: PolesFigureProc
-  RSM: RSMProc
+  RSMPlot: RSMProc
   RockingCurve: RCurveProc
   SingleScan: OneDScanProc
   raw_afm: TwoDAFMProc

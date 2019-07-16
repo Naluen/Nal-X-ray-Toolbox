@@ -6,10 +6,6 @@ from functools import partial
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
-from matplotlib.backends.backend_qt5agg import \
-    FigureCanvasQTAgg as FigureCanvas
-
-from module.Module import BasicToolBar
 from module.Module import ProcModule
 
 
@@ -53,13 +49,20 @@ class OneDScanProc(ProcModule):
         fit_tool_button.setMenu(fit_tool_button_menu)
         self._toolbar.addWidget(fit_tool_button)
 
+        "Status Bar"
+        self._status_bar = QtWidgets.QStatusBar()
+        "Add all sub widgets into the main layout"
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.addWidget(self._toolbar)
         self.layout.addWidget(self.canvas)
+        self.layout.addWidget(self._status_bar)
+
         self.plot_widget.setLayout(self.layout)
         self.plot_widget.closeEvent = self.closeEvent
 
         self.refresh_canvas.connect(self.repaint)
+
+        self._status_bar.showMessage("Ready")
 
     def _build_config_widget(self):
         config_widget = QtWidgets.QWidget(self.plot_widget)
@@ -110,7 +113,7 @@ class OneDScanProc(ProcModule):
                 file_handle.write("{0}, {1}".format(i, k) + os.linesep)
 
     @QtCore.pyqtSlot(bool)
-    def  repaint(self, message=True):
+    def repaint(self, message=True):
         logging.debug("Re-Paint Main Image")
         plt.figure(self.figure.number)
         if message:
@@ -131,6 +134,19 @@ class OneDScanProc(ProcModule):
             )
         plt.xlabel("{0}".format(self.attr['STEPPING_DRIVE1']))
         plt.ylabel("{0}".format("Intensity"))
+        self.canvas.draw()
+
+        self.cidmotion = self.canvas.mpl_connect(
+            'motion_notify_event', self.on_motion)
+
+    def on_motion(self, event):
+        if event.inaxes != plt.gca():
+            return
+        y = self.data[1, :][np.abs(self.data[0, :]-event.xdata).argmin(0)]
+        # self._pt.remove()
+        # self._pt = plt.gca().plot(event.xdata, y, "*", 'r')
+        self._status_bar.showMessage(
+            "{0}, {1}".format(event.xdata, y))
         self.canvas.draw()
 
     def plot(self):
@@ -260,6 +276,16 @@ class OneDScanProc(ProcModule):
 
         return x, fit_fun(x, *popt), extra_res
 
+    def _sum(self):
+        x = self.data[0, :]
+        y = self.data[1, :]
+        sum_val = 0
+        for idx, _ in enumerate(x):
+            if idx < len(x) - 1:
+                sum_val += (x[idx+1] - x[idx]) * (y[idx+1] + y[idx])/2
+
+        return sum_val
+
     def _filter(self):
         logging.debug("Butter Filter...")
         from scipy import signal
@@ -298,7 +324,7 @@ class OneDScanProc(ProcModule):
     def _x_shift_to_centre(self):
         return self.data[0, :][np.argmax(self.data[1, :])]
 
-    def _target(self, mode='auto', is_plot=True):
+    def     _target(self, mode='auto', is_plot=True):
 
         if mode == 'auto':
             rg = 50

@@ -1,5 +1,7 @@
 import abc
+import io
 import logging
+import os
 from functools import partial
 
 import numpy
@@ -13,6 +15,8 @@ from matplotlib.backends.backend_qt5agg import (
 class Module(QtCore.QObject):
     send_param = QtCore.pyqtSignal(dict)
     update_gui_cfg = QtCore.pyqtSignal(dict)
+
+    # To update the config dict which control the widget UI of this processor.
 
     def __init__(self):
         super(Module, self).__init__()
@@ -86,7 +90,6 @@ class FileModule(Module):
         super(FileModule, self).__init__()
         self.file = None
 
-
     @property
     @abc.abstractmethod
     def name(self):
@@ -109,6 +112,17 @@ class FileModule(Module):
 
 
 class ProcModule(Module):
+    """
+    This class is the basic class for all the processors, which is used to
+    transform the data nd-arrays into the readable images.
+
+    Each processor should provide a GUI widget to communicate with users.
+
+    Each child class of this should correspond to one or several kinds of scan,
+    for example, the PolesFigureProc corresponds to the PF.
+    """
+    CUR = ''
+
     def __init__(self, *args):
         super(ProcModule, self).__init__()
         self.param = {}
@@ -160,6 +174,9 @@ class ProcModule(Module):
 
         self._toolbar = BasicToolBar(self)
 
+        "Status Bar"
+        self._status_bar = QtWidgets.QStatusBar()
+
     @abc.abstractmethod
     def _configuration(self):
         pass
@@ -168,9 +185,50 @@ class ProcModule(Module):
         self.repaint("")
         event.accept()
 
-    @abc.abstractmethod
     def _export_data(self):
-        pass
+        data_file_name = QtWidgets.QFileDialog.getSaveFileName(
+            QtWidgets.QFileDialog(),
+            'Save Image file',
+            "/",
+            "Npz files (*.npz);;Txt File (*.txt)"
+        )
+        data_file_name = data_file_name[0]
+        if not data_file_name:
+            return
+
+        _, file_extension = os.path.splitext(data_file_name)
+
+        if file_extension.lower() == '.txt':
+            self._export_data2txt(data_file_name)
+        elif file_extension.lower() == '.npz':
+            self._export_data2npz(data_file_name)
+        else:
+            raise TypeError()
+
+    def _export_data2txt(self, data_file_name):
+        with open(data_file_name, 'w') as file_handle:
+            file_handle.write("x, y, intensity" + os.linesep)
+            zi = self.data.copy()
+            xi = self.xi.copy()
+            yi = self.yi.copy()
+
+            zi = zi.copy().flatten()
+            xx, yy = np.meshgrid(xi, yi)
+            xi = xx.flatten()
+            yi = yy.flatten()
+            for i, j, k in zip(xi, yi, zi):
+                file_handle.write("{0}, {1}, {2}".format(i, j, k) + os.linesep)
+
+    def _export_data2npz(self, data_file_name):
+        zi = self.data.copy()
+        xi = self.xi.copy()
+        yi = self.yi.copy()
+        np.savez(
+            data_file_name,
+            x=xi,
+            y=yi,
+            z=zi
+        )
 
     @abc.abstractmethod
     def repaint(self, msg):
@@ -181,19 +239,40 @@ class ProcModule(Module):
         tp_d = self.figure.canvas.get_supported_filetypes()
         filter_s = ";;".join(["{0} (*.{1})".format(tp_d[i], i) for i in tp_d])
 
+        default_dir = self.CUR or '/'
         file_n = QtWidgets.QFileDialog.getSaveFileName(
             QtWidgets.QFileDialog(),
             caption="Save File...",
-            directory='/',
+            directory=default_dir,
             filter=filter_s,
         )
+        default_dpi = 400
         if file_n:
-            plt.savefig(
-                file_n[0],
-                transparent=True,
-                dpi=300,
-                bbox_inches='tight',
-            )
+            try:
+                plt.savefig(
+                    file_n[0],
+                    transparent=True,
+                    dpi=default_dpi,
+                    bbox_inches='tight',
+                )
+            except MemoryError:
+                plt.savefig(
+                    file_n[0],
+                    transparent=True,
+                    dpi=default_dpi - 100,
+                    bbox_inches='tight',
+                )
+            self.CUR = os.path.dirname(file_n[0])
+        else:
+            pass
+
+    def save_to_clipboard(self):
+        plt.figure(self.figure.number)
+        buf = io.BytesIO()
+        plt.savefig(buf)
+        QtWidgets.QApplication.clipboard().setImage(
+            QtGui.QImage.fromData(buf.getvalue()))
+        buf.close()
 
     @abc.abstractmethod
     def plot(self):
@@ -226,6 +305,10 @@ class BasicToolBar(QtWidgets.QToolBar):
             parent.save_image,
         )
         self.addAction(
+            "Save to Clipboard",
+            parent.save_to_clipboard,
+        )
+        self.addAction(
             QtGui.QIcon(QtGui.QPixmap('icons/export_data.png')),
             "Export Data...",
             parent._export_data,
@@ -236,5 +319,3 @@ class BasicToolBar(QtWidgets.QToolBar):
             parent._configuration,
         )
         self.addSeparator()
-
-
